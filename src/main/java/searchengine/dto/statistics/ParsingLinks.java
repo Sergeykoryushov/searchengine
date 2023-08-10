@@ -14,15 +14,12 @@ import searchengine.model.SiteForIndexing;
 import searchengine.model.SiteStatus;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
-import searchengine.services.StartIndexingServiceImp;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.concurrent.RecursiveAction;
-
-import static org.jsoup.nodes.Document.OutputSettings.Syntax.html;
 
 @Data
 public class ParsingLinks extends RecursiveAction {
@@ -46,47 +43,44 @@ public class ParsingLinks extends RecursiveAction {
                         .ignoreContentType(true);
                 Document document = connection.get();
                 Elements elements = document.select("a[href]");
-
-
                 for (Element element : elements) {
                     String link = element.absUrl("href");
                     if (checkLink(link)) {
                         int statusCode = HttpStatus.OK.value();
-                        saveInPageRepository(statusCode);
                         SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
+                        savePageInRepository(statusCode, link, site);
                         siteForIndexing.setStatusTime(LocalDateTime.now());
                         siteRepository.save(siteForIndexing);
-                        ParsingLinks task = new ParsingLinks(site,link, depth + 1,pageRepository,siteRepository);
+                        ParsingLinks task = new ParsingLinks(site, link, depth + 1, pageRepository, siteRepository);
                         task.fork();
                         task.join();
                     }
                 }
-
             } catch (IOException | InterruptedException e) {
                 int statusCode = -1;
                 if (e instanceof org.jsoup.HttpStatusException) {
                     statusCode = ((org.jsoup.HttpStatusException) e).getStatusCode();
                 }
-                saveInSiteRepository(e);
-                saveInPageRepository(statusCode);
+                saveSiteInRepository(e);
             }
         }
     }
 
     public boolean checkLink(String link) {
         return link.matches(regexForUrl) && (link.startsWith(url) || link.startsWith(setUrlWithoutDomain(url))) &&
-                !link.contains("#") && checkContainsLinkInRepository(link) && !link.contains(".pdf");
+                !link.contains("#") && !link.contains(".pdf");
     }
+
     public String htmlParser(String url) {
         String html = null;
-            try {
-                Document doc = Jsoup.connect(url).get();
-                html = doc.html();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return html;
+        try {
+            Document doc = Jsoup.connect(url).get();
+            html = doc.html();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+        return html;
+    }
 
     public String setUrlWithoutDomain(String siteUrl) {
         String targetUrl = null;
@@ -102,16 +96,14 @@ public class ParsingLinks extends RecursiveAction {
         }
         return targetUrl;
     }
-    public boolean checkContainsLinkInRepository(String link) {
+
+    public synchronized boolean checkContainsLinkInRepository(String link) {
         Page page = pageRepository.findByPath(link);
-        if (page != null) {
-            return false;
-        } else {
-            return true;
-        }
+        return page != null;
     }
 
-    public void saveInSiteRepository(Exception e){
+
+    public void saveSiteInRepository(Exception e) {
         SiteForIndexing siteForIndexing = new SiteForIndexing();
         siteForIndexing.setName(site.getName());
         siteForIndexing.setUrl(site.getUrl());
@@ -119,15 +111,19 @@ public class ParsingLinks extends RecursiveAction {
         siteForIndexing.setLastError(e.getMessage());
         siteRepository.save(siteForIndexing);
     }
-    public void saveInPageRepository(int statusCode){
-        if(statusCode == -1){
+
+    public void savePageInRepository(int statusCode, String link, SiteForIndexing siteForIndexing) {
+        if (statusCode == -1) {
             statusCode = HttpStatus.NOT_FOUND.value();
         }
+        if (checkContainsLinkInRepository(link)) {
+            return;
+        }
         Page page = new Page();
-        String html = htmlParser(url);
-        page.setPath(url);
+        String html = htmlParser(link);
+        page.setPath(link);
         page.setCode(statusCode);
-        page.setSite(site);
+        page.setSite(siteForIndexing);
         page.setContent(html);
         pageRepository.save(page);
     }

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -23,19 +24,21 @@ public class StartIndexingServiceImp implements StartIndexingService{
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final SitesList sites;
+    private  final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
     private final List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
 
     @Override
     public List<ResultForIndexing> startIndex() {
         deleteSitesAllData();
         addSite();
-        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        for (ResultForIndexing resultForIndexing : resultForIndexingList) {
-            if (resultForIndexing.getResult()) {
-                executor.execute(this::addPage);
-            }
-        }
-        executor.shutdown();
+        addPage();
+//        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+//        for (ResultForIndexing resultForIndexing : resultForIndexingList) {
+//            if (resultForIndexing.getResult()) {
+//                executor.execute(this::addPage);
+//            }
+//        }
+//        executor.shutdown();
         return resultForIndexingList;
     }
 
@@ -45,27 +48,17 @@ public class StartIndexingServiceImp implements StartIndexingService{
         if (siteList == null) {
             return resultForIndexingList;
         }
-        List<SiteForIndexing> newSiteList = new ArrayList<>();
+        List<SiteForIndexing> siteForIndexingList = siteRepository.findAll();
         for (Site site : siteList) {
-            ResultForIndexing resultForIndexing = new ResultForIndexing();
-            SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
-            if (siteForIndexing != null) {
-                if ((siteForIndexing.getSiteStatus() == SiteStatus.INDEXING)) {
-                    resultForIndexing.setResult(false);
-                    resultForIndexing.setError("Индексация уже запущена");
-                    resultForIndexingList.add(resultForIndexing);
-                    break;
-                }
-                addSiteInSiteList(site, newSiteList);
-                resultForIndexing.setResult(true);
-                resultForIndexingList.add(resultForIndexing);
-                break;
+            if(checkSiteIndexing(site,siteForIndexingList)){
+                continue;
             }
-            addSiteInSiteList(site, newSiteList);
+            ResultForIndexing resultForIndexing = new ResultForIndexing();
+            addSiteInSiteList(site);
             resultForIndexing.setResult(true);
             resultForIndexingList.add(resultForIndexing);
         }
-        siteRepository.saveAll(newSiteList);
+        siteRepository.saveAll(sitesForStartIndexingList);
         return resultForIndexingList;
     }
 
@@ -78,11 +71,22 @@ public class StartIndexingServiceImp implements StartIndexingService{
     public void addPage() {
         long start = System.currentTimeMillis();
         ForkJoinPool pool = new ForkJoinPool();
+        List<ParsingLinks> tasks = new ArrayList<>();
+        for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
+            ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0, pageRepository, siteRepository);
+            tasks.add(task);
+        }
+        for (ParsingLinks task : tasks) {
+            pool.execute(task);
+        }
+        pool.shutdown();
+        try {
+            pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         List<SiteForIndexing> siteForIndexingList = siteRepository.findAll();
         for (SiteForIndexing siteForIndexing : siteForIndexingList) {
-            ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0, pageRepository, siteRepository);
-            pool.invoke(task);
-            pool.shutdown();
             siteForIndexing.setSiteStatus(SiteStatus.INDEXED);
             siteRepository.save(siteForIndexing);
         }
@@ -90,11 +94,30 @@ public class StartIndexingServiceImp implements StartIndexingService{
         System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");
     }
 
-    public void addSiteInSiteList(Site site, List<SiteForIndexing> newSiteList) {
+    public void addSiteInSiteList(Site site) {
         SiteForIndexing newSiteForIndexing = new SiteForIndexing();
         newSiteForIndexing.setName(site.getName());
         newSiteForIndexing.setUrl(site.getUrl());
         newSiteForIndexing.setSiteStatus(SiteStatus.INDEXING);
-        newSiteList.add(newSiteForIndexing);
+        sitesForStartIndexingList.add(newSiteForIndexing);
+    }
+
+    public boolean checkSiteIndexing(Site site, List<SiteForIndexing> siteForIndexingList) {
+        if(siteForIndexingList== null){
+            return false;
+        }
+        for (SiteForIndexing siteForIndexing : siteForIndexingList) {
+            if (!siteForIndexing.getUrl().equals(site.getUrl())) {
+                return false;
+            }
+            if (siteForIndexing.getSiteStatus() == SiteStatus.INDEXING) {
+                ResultForIndexing resultForIndexing = new ResultForIndexing();
+                resultForIndexing.setResult(false);
+                resultForIndexing.setError("Индексация уже запущена");
+                resultForIndexingList.add(resultForIndexing);
+                return true;
+            }
+        }
+        return false;
     }
 }

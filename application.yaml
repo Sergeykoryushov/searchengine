@@ -16,11 +16,21 @@ spring:
     show-sql: true
 indexing-settings:
   sites:
-    - url: https://www.lenta.ru
-      name: Лента.ру
-#    - url: https://www.skillbox.ru
-#      name: Skillbox
-#    - url: https://www.playback.ru
-#      name: PlayBack.Ru
+#    - url: https://www.lenta.ru
+#      name: Лента.ру
+    - url: https://www.skillbox.ru
+      name: Skillbox
+    - url: https://www.playback.ru
+      name: PlayBack.Ru
+#      http://www.playback.ru/
+#      https://volochek.life/
+#      http://radiomv.ru/
+#      https://ipfran.ru/
+#      https://dimonvideo.ru/
+#      https://nikoartgallery.com/
+#      https://et-cetera.ru/mobile/
+#      https://www.lutherancathedral.ru/
+#      https://dombulgakova.ru/
+#      https://www.svetlovka.ru/
       server:
         port: 8080
