@@ -123,10 +123,6 @@ public class ParsingLinks extends RecursiveAction {
         if(statusCode == HttpStatus.OK.value()){
             html = htmlParser(link);
         }
-        if (statusCode == -1) {
-            statusCode = HttpStatus.NOT_FOUND.value();
-            html = "";
-        }
         Page page = new Page();
         page.setPath(link);
         page.setCode(statusCode);
