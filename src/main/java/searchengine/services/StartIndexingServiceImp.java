@@ -13,8 +13,6 @@ import searchengine.repository.SiteRepository;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -26,14 +24,52 @@ public class StartIndexingServiceImp implements StartIndexingService{
     private final SitesList sites;
     private  final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
     private final List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
+    private static ForkJoinPool pool = new ForkJoinPool();
 
     @Override
     public List<ResultForIndexing> startIndex() {
         deleteSitesAllData();
         addSite();
-        addPage();
+        startIndexingAllSites();
         return resultForIndexingList;
     }
+
+    @Override
+    public List<ResultForIndexing> stopIndex() {
+        resultForIndexingList.clear();
+        if (pool != null) {
+            List<ParsingLinks> parsingLinksList = ParsingLinks.getParsingTasks();
+            for (ParsingLinks parsingTask : parsingLinksList) {
+                parsingTask.interruptTask();
+            }
+            pool.shutdownNow();
+            try {
+                if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
+                    pool.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                pool.shutdownNow();
+            }
+        }
+        List<SiteForIndexing> sitesIndexingNowList = siteRepository.findBySiteStatus(SiteStatus.INDEXING);
+        for (SiteForIndexing site : sitesIndexingNowList) {
+            ResultForIndexing resultForIndexing = new ResultForIndexing();
+            if (!site.getSiteStatus().equals(SiteStatus.INDEXING)) {
+                resultForIndexing.setResult(false);
+                resultForIndexing.setError("Индексация не запущена");
+                resultForIndexingList.add(resultForIndexing);
+                continue;
+            }
+                site.setSiteStatus(SiteStatus.FAILED);
+                site.setLastError("Индексация остановлена пользователем");
+                resultForIndexing.setResult(true);
+                resultForIndexingList.add(resultForIndexing);
+                siteRepository.save(site);
+        }
+        return resultForIndexingList;
+    }
+
 
 
     public List<ResultForIndexing> addSite() {
@@ -61,9 +97,8 @@ public class StartIndexingServiceImp implements StartIndexingService{
         }
     }
 
-    public void addPage() {
+    public void startIndexingAllSites() {
         long start = System.currentTimeMillis();
-        ForkJoinPool pool = new ForkJoinPool();
         List<ParsingLinks> tasks = new ArrayList<>();
         for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
             ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0, pageRepository, siteRepository);
@@ -77,11 +112,6 @@ public class StartIndexingServiceImp implements StartIndexingService{
             pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }
-        List<SiteForIndexing> siteForIndexingList = siteRepository.findAll();
-        for (SiteForIndexing siteForIndexing : siteForIndexingList) {
-            siteForIndexing.setSiteStatus(SiteStatus.INDEXED);
-            siteRepository.save(siteForIndexing);
         }
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");

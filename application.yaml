@@ -18,13 +18,8 @@ indexing-settings:
   sites:
 #    - url: https://www.lenta.ru
 #      name: Лента.ру
-<<<<<<< HEAD
 #    - url: https://www.skillbox.ru
 #      name: Skillbox
-=======
-    - url: https://www.skillbox.ru
-      name: Skillbox
->>>>>>> e9083d6c6960ac71bbd1327922deefba408fa495
     - url: https://www.playback.ru
       name: PlayBack.Ru
 #      http://www.playback.ru/

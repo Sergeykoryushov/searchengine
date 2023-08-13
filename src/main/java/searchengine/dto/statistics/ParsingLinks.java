@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.RecursiveAction;
 
@@ -31,26 +32,40 @@ public class ParsingLinks extends RecursiveAction {
     @Getter(AccessLevel.PUBLIC)
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
-
-
+    private volatile boolean interrupted = false;
+    private static List<ParsingLinks> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
+
 
     @Override
     protected void compute() {
+        parsingTasks.add(this);
         if (depth <= MAX_DEPTH) {
             SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
             try {
                 Thread.sleep(150);
+                    if (interrupted) {
+                        return;
+                    }
                 Connection connection = Jsoup.connect(url).ignoreContentType(true);
                 Document document = connection.get();
                 Elements elements = document.select("a[href]");
                 for (Element element : elements) {
+                    if (interrupted) {
+                        return;
+                    }
                     String link = element.absUrl("href");
                     if (checkLink(link)) {
                         int statusCode = HttpStatus.OK.value();
                         savePageInRepository(statusCode, link, site);
+                        if(siteForIndexing.getSiteStatus() != SiteStatus.FAILED) {
                         siteForIndexing.setStatusTime(LocalDateTime.now());
+                        }
                         siteRepository.save(siteForIndexing);
+                        if (interrupted) {
+
+                            return;
+                        }
                         ParsingLinks task = new ParsingLinks(site, link, depth + 1, pageRepository, siteRepository);
                         task.fork();
                         task.join();
@@ -66,6 +81,11 @@ public class ParsingLinks extends RecursiveAction {
                 }
                 savePageInRepository(statusCode, url, siteForIndexing);
             }
+            if (interrupted) {
+                return;
+            }
+            siteForIndexing.setSiteStatus(SiteStatus.INDEXED);
+            siteRepository.save(siteForIndexing);
         }
     }
 
@@ -129,6 +149,12 @@ public class ParsingLinks extends RecursiveAction {
         page.setSite(siteForIndexing);
         page.setContent(html);
         pageRepository.save(page);
+    }
+    public void interruptTask() {
+        interrupted = true;
+    }
+    public static List<ParsingLinks> getParsingTasks() {
+        return parsingTasks;
     }
 }
 

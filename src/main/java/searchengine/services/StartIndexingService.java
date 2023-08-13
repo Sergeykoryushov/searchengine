@@ -6,5 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 
 public interface StartIndexingService {
-    public List<ResultForIndexing> startIndex();
+    List<ResultForIndexing> startIndex();
+    List<ResultForIndexing> stopIndex();
 }
