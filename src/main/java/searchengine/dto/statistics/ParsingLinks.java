@@ -9,6 +9,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.http.HttpStatus;
+import searchengine.config.Site;
+import searchengine.config.SitesList;
 import searchengine.model.Page;
 import searchengine.model.SiteForIndexing;
 import searchengine.model.SiteStatus;
@@ -32,7 +34,9 @@ public class ParsingLinks extends RecursiveAction {
     @Getter(AccessLevel.PUBLIC)
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
+    private SitesList sites;
     private volatile boolean interrupted = false;
+    @Getter
     private static List<ParsingLinks> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
 
@@ -72,8 +76,12 @@ public class ParsingLinks extends RecursiveAction {
                     }
                 }
             } catch (IOException | InterruptedException e) {
-                if (siteForIndexing.getUrl().equals(url)) {
-                    saveSiteInRepository(e);
+                List<Site> siteList = sites.getSites();
+                for (Site site: siteList) {
+                    if (siteForIndexing.getUrl().equals(url)) {
+                        saveSiteInRepository(e,site);
+                        break;
+                    }
                 }
                 int statusCode = -1;
                 if (e instanceof org.jsoup.HttpStatusException) {
@@ -126,8 +134,8 @@ public class ParsingLinks extends RecursiveAction {
     }
 
 
-    public void saveSiteInRepository(Exception e) {
-        SiteForIndexing siteForIndexing = new SiteForIndexing();
+    public void saveSiteInRepository(Exception e,Site site) {
+        SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
         siteForIndexing.setName(site.getName());
         siteForIndexing.setUrl(site.getUrl());
         siteForIndexing.setSiteStatus(SiteStatus.FAILED);
@@ -152,9 +160,6 @@ public class ParsingLinks extends RecursiveAction {
     }
     public void interruptTask() {
         interrupted = true;
-    }
-    public static List<ParsingLinks> getParsingTasks() {
-        return parsingTasks;
     }
 }
 

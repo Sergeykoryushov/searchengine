@@ -22,10 +22,12 @@ indexing-settings:
 #      name: Skillbox
     - url: https://www.playback.ru
       name: PlayBack.Ru
-#      http://www.playback.ru/
-#      https://volochek.life/
-#      http://radiomv.ru/
-#      https://ipfran.ru/
+#    - url: https://volochek.life/
+#      name: Volochek.Life
+    - url: http://radiomv.ru/
+      name: Radiomv.Ru
+#    - url: https://ipfran.ru/
+#      name: Ipfran.Ru
 #      https://dimonvideo.ru/
 #      https://nikoartgallery.com/
 #      https://et-cetera.ru/mobile/

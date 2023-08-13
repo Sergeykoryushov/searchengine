@@ -29,7 +29,7 @@ public class StartIndexingServiceImp implements StartIndexingService{
     @Override
     public List<ResultForIndexing> startIndex() {
         deleteSitesAllData();
-        addSite();
+        addSiteForIndexing();
         startIndexingAllSites();
         return resultForIndexingList;
     }
@@ -72,10 +72,10 @@ public class StartIndexingServiceImp implements StartIndexingService{
 
 
 
-    public List<ResultForIndexing> addSite() {
+    public void addSiteForIndexing() {
         List<Site> siteList = sites.getSites();
         if (siteList == null) {
-            return resultForIndexingList;
+            return;
         }
         List<SiteForIndexing> siteForIndexingList = siteRepository.findAll();
         for (Site site : siteList) {
@@ -88,7 +88,6 @@ public class StartIndexingServiceImp implements StartIndexingService{
             resultForIndexingList.add(resultForIndexing);
         }
         siteRepository.saveAll(sitesForStartIndexingList);
-        return resultForIndexingList;
     }
 
     public void deleteSitesAllData() {
