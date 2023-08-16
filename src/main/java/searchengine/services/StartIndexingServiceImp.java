@@ -1,16 +1,27 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Connection;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.ParsingLinks;
 import searchengine.dto.statistics.ResultForIndexing;
+import searchengine.model.Page;
 import searchengine.model.SiteForIndexing;
 import searchengine.model.SiteStatus;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
@@ -23,20 +34,19 @@ public class StartIndexingServiceImp implements StartIndexingService{
     private final PageRepository pageRepository;
     private final SitesList sites;
     private  final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
-    private final List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
     private static ForkJoinPool pool = new ForkJoinPool();
 
     @Override
     public List<ResultForIndexing> startIndex() {
         deleteSitesAllData();
-        addSiteForIndexing();
+        List<ResultForIndexing> resultForIndexingList = addSiteForIndexing();
         startIndexingAllSites();
         return resultForIndexingList;
     }
 
     @Override
     public List<ResultForIndexing> stopIndex() {
-        resultForIndexingList.clear();
+        List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
         if (pool != null) {
             List<ParsingLinks> parsingLinksList = ParsingLinks.getParsingTasks();
             for (ParsingLinks parsingTask : parsingLinksList) {
@@ -70,16 +80,43 @@ public class StartIndexingServiceImp implements StartIndexingService{
         return resultForIndexingList;
     }
 
-
-
-    public void addSiteForIndexing() {
-        List<Site> siteList = sites.getSites();
-        if (siteList == null) {
-            return;
+    @Override
+    public List<ResultForIndexing> indexPageByUrl(String url){
+        List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
+        ResultForIndexing resultForIndexing = new ResultForIndexing();
+        ParsingLinks parsingLinks = new ParsingLinks();
+        String baseUrl = extractBaseUrl(url);
+        SiteForIndexing siteForIndexing = siteRepository.findByUrl(baseUrl);
+        if(siteForIndexing == null){
+            resultForIndexing.setResult(false);
+            resultForIndexing.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
+            resultForIndexingList.add(resultForIndexing);
+            return resultForIndexingList;
         }
+        String path = parsingLinks.urlWithoutRelativePath(url);
+        Page page = pageRepository.findByPath(path);
+        parsingLinks.setUrl(siteForIndexing.getUrl());
+        if(page != null){
+            pageRepository.delete(page);
+        }
+            if(parsingLinks.checkLink(url)){
+                int statusCode = HttpStatus.OK.value();
+                parsingLinks.savePageInRepository(statusCode, path, siteForIndexing);
+                siteForIndexing.setStatusTime(LocalDateTime.now());
+                siteRepository.save(siteForIndexing);
+                resultForIndexing.setResult(true);
+                resultForIndexingList.add(resultForIndexing);
+            }
+
+        return resultForIndexingList;
+    }
+
+    public List<ResultForIndexing> addSiteForIndexing() {
+        List<Site> siteList = sites.getSites();
+        List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
         List<SiteForIndexing> siteForIndexingList = siteRepository.findAll();
         for (Site site : siteList) {
-            if(checkSiteIndexing(site,siteForIndexingList)){
+            if(checkSiteIndexing(site,siteForIndexingList,resultForIndexingList)){
                 continue;
             }
             ResultForIndexing resultForIndexing = new ResultForIndexing();
@@ -88,6 +125,7 @@ public class StartIndexingServiceImp implements StartIndexingService{
             resultForIndexingList.add(resultForIndexing);
         }
         siteRepository.saveAll(sitesForStartIndexingList);
+        return resultForIndexingList;
     }
 
     public void deleteSitesAllData() {
@@ -119,12 +157,12 @@ public class StartIndexingServiceImp implements StartIndexingService{
     public void addSiteInSiteList(Site site) {
         SiteForIndexing newSiteForIndexing = new SiteForIndexing();
         newSiteForIndexing.setName(site.getName());
-        newSiteForIndexing.setUrl(site.getUrl());
+        newSiteForIndexing.setUrl(addSlashToEnd(site.getUrl()));
         newSiteForIndexing.setSiteStatus(SiteStatus.INDEXING);
         sitesForStartIndexingList.add(newSiteForIndexing);
     }
 
-    public boolean checkSiteIndexing(Site site, List<SiteForIndexing> siteForIndexingList) {
+    public boolean checkSiteIndexing(Site site, List<SiteForIndexing> siteForIndexingList, List<ResultForIndexing> resultForIndexingList) {
         if(siteForIndexingList== null){
             return false;
         }
@@ -141,5 +179,22 @@ public class StartIndexingServiceImp implements StartIndexingService{
             }
         }
         return false;
+    }
+    public String extractBaseUrl(String fullUrl) {
+        try {
+            URI uri = new URI(fullUrl);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            return scheme + "://" + host + "/";
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return fullUrl;
+        }
+    }
+    public String addSlashToEnd(String url) {
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
+        return url;
     }
 }

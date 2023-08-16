@@ -8,4 +8,5 @@ import java.util.List;
 public interface StartIndexingService {
     List<ResultForIndexing> startIndex();
     List<ResultForIndexing> stopIndex();
+    List<ResultForIndexing> indexPageByUrl(String url);
 }

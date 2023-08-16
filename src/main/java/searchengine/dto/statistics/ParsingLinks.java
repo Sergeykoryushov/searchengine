@@ -1,8 +1,6 @@
 package searchengine.dto.statistics;
 
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.Getter;
+import lombok.*;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -26,20 +24,28 @@ import java.util.List;
 import java.util.concurrent.RecursiveAction;
 
 @Data
+@NoArgsConstructor
 public class ParsingLinks extends RecursiveAction {
-    private final SiteForIndexing site;
-    private final String url;
-    private final int depth;
+    private SiteForIndexing site;
+    private String url;
+    private int depth;
     private final int MAX_DEPTH = 2;
     @Getter(AccessLevel.PUBLIC)
-    private final PageRepository pageRepository;
-    private final SiteRepository siteRepository;
+    private PageRepository pageRepository;
+    private SiteRepository siteRepository;
     private SitesList sites;
     private volatile boolean interrupted = false;
     @Getter
     private static List<ParsingLinks> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
 
+    public ParsingLinks(SiteForIndexing site, String url, int depth, PageRepository pageRepository, SiteRepository siteRepository) {
+        this.site = site;
+        this.url = url;
+        this.depth = depth;
+        this.pageRepository = pageRepository;
+        this.siteRepository = siteRepository;
+    }
 
     @Override
     protected void compute() {
@@ -67,7 +73,6 @@ public class ParsingLinks extends RecursiveAction {
                         }
                         siteRepository.save(siteForIndexing);
                         if (interrupted) {
-
                             return;
                         }
                         ParsingLinks task = new ParsingLinks(site, link, depth + 1, pageRepository, siteRepository);
@@ -79,7 +84,7 @@ public class ParsingLinks extends RecursiveAction {
                 List<Site> siteList = sites.getSites();
                 for (Site site: siteList) {
                     if (siteForIndexing.getUrl().equals(url)) {
-                        saveSiteInRepository(e,site);
+                        saveSiteInStatusFailed(e,site);
                         break;
                     }
                 }
@@ -134,7 +139,7 @@ public class ParsingLinks extends RecursiveAction {
     }
 
 
-    public void saveSiteInRepository(Exception e,Site site) {
+    public void saveSiteInStatusFailed(Exception e, Site site) {
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
         siteForIndexing.setName(site.getName());
         siteForIndexing.setUrl(site.getUrl());
@@ -144,15 +149,19 @@ public class ParsingLinks extends RecursiveAction {
     }
 
     public void savePageInRepository(int statusCode, String link, SiteForIndexing siteForIndexing) {
-        if (checkContainsLinkInRepository(link)) {
+        String linkWithoutRelativePath = urlWithoutRelativePath(link);
+        if (checkContainsLinkInRepository(linkWithoutRelativePath)) {
             return;
         }
         String html= null;
         if(statusCode == HttpStatus.OK.value()){
             html = htmlParser(link);
         }
+        if(html == null){
+            return;
+        }
         Page page = new Page();
-        page.setPath(link);
+        page.setPath(linkWithoutRelativePath);
         page.setCode(statusCode);
         page.setSite(siteForIndexing);
         page.setContent(html);
@@ -160,6 +169,16 @@ public class ParsingLinks extends RecursiveAction {
     }
     public void interruptTask() {
         interrupted = true;
+    }
+
+    public String urlWithoutRelativePath(String urlString) {
+        try {
+            URL url = new URL(urlString);
+            return url.getPath();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return urlString;
+        }
     }
 }
 
