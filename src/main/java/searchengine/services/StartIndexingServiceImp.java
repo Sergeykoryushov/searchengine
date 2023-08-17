@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -24,7 +25,9 @@ import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -33,8 +36,12 @@ public class StartIndexingServiceImp implements StartIndexingService{
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final SitesList sites;
+    @Getter
+    private static  List<ParsingLinks> tasks;
     private  final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
-    private static ForkJoinPool pool = new ForkJoinPool();
+    private final List<Thread> threadList = new ArrayList<>();
+    private boolean stopAllIndexing = false;
+
 
     @Override
     public List<ResultForIndexing> startIndex() {
@@ -47,22 +54,23 @@ public class StartIndexingServiceImp implements StartIndexingService{
     @Override
     public List<ResultForIndexing> stopIndex() {
         List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
-        if (pool != null) {
-            List<ParsingLinks> parsingLinksList = ParsingLinks.getParsingTasks();
-            for (ParsingLinks parsingTask : parsingLinksList) {
-                parsingTask.interruptTask();
-            }
-            pool.shutdownNow();
-            try {
-                if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    pool.shutdownNow();
+        for (Thread thread: threadList){
+            if(thread.isAlive()){
+                stopAllIndexing = true;
+                List<ParsingLinks> parsingLinksList = ParsingLinks.getParsingTasks();
+                for (ParsingLinks parsingTask : parsingLinksList) {
+                    parsingTask.interruptTask();
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                pool.shutdownNow();
             }
         }
-        List<SiteForIndexing> sitesIndexingNowList = siteRepository.findBySiteStatus(SiteStatus.INDEXING);
+        for (Thread thread : threadList) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        List<SiteForIndexing> sitesIndexingNowList = siteRepository.findAll();
         for (SiteForIndexing site : sitesIndexingNowList) {
             ResultForIndexing resultForIndexing = new ResultForIndexing();
             if (!site.getSiteStatus().equals(SiteStatus.INDEXING)) {
@@ -136,19 +144,38 @@ public class StartIndexingServiceImp implements StartIndexingService{
 
     public void startIndexingAllSites() {
         long start = System.currentTimeMillis();
-        List<ParsingLinks> tasks = new ArrayList<>();
+        tasks = new ArrayList<>();
         for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
             ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0, pageRepository, siteRepository);
             tasks.add(task);
         }
-        for (ParsingLinks task : tasks) {
-            pool.execute(task);
+
+        for (ParsingLinks task: tasks) {
+            Runnable runnable = ()->{
+                    ForkJoinPool pool = new ForkJoinPool();
+                    pool.invoke(task);
+                    pool.shutdown();
+                    if (pool.awaitQuiescence(Long.MAX_VALUE, TimeUnit.NANOSECONDS)) {
+                        if(stopAllIndexing){
+                            return;
+                        }
+                        SiteForIndexing siteFromRepository = siteRepository.findByUrl(task.getSite().getUrl());
+                        if (siteFromRepository.getSiteStatus().equals(SiteStatus.INDEXING)) {
+                            siteFromRepository.setSiteStatus(SiteStatus.INDEXED);
+                            siteRepository.save(siteFromRepository);
+                        }
+                    }
+            };
+            Thread thread = new Thread(runnable);
+            thread.start();
+            threadList.add(thread);
         }
-        pool.shutdown();
-        try {
-            pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        for (Thread thread : threadList) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");

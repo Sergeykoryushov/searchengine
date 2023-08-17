@@ -14,6 +14,7 @@ import searchengine.model.SiteForIndexing;
 import searchengine.model.SiteStatus;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
+import searchengine.services.StartIndexingServiceImp;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -35,6 +36,7 @@ public class ParsingLinks extends RecursiveAction {
     private SiteRepository siteRepository;
     private SitesList sites;
     private volatile boolean interrupted = false;
+    private boolean isCompleted = false;
     @Getter
     private static List<ParsingLinks> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
@@ -94,11 +96,6 @@ public class ParsingLinks extends RecursiveAction {
                 }
                 savePageInRepository(statusCode, url, siteForIndexing);
             }
-            if (interrupted) {
-                return;
-            }
-            siteForIndexing.setSiteStatus(SiteStatus.INDEXED);
-            siteRepository.save(siteForIndexing);
         }
     }
 
@@ -179,6 +176,9 @@ public class ParsingLinks extends RecursiveAction {
             e.printStackTrace();
             return urlString;
         }
+    }
+    public void checkSiteEndIndexing(){
+
     }
 }
 
