@@ -13,18 +13,18 @@ import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.ParsingLinks;
 import searchengine.dto.statistics.ResultForIndexing;
-import searchengine.model.Page;
-import searchengine.model.SiteForIndexing;
-import searchengine.model.SiteStatus;
+import searchengine.dto.statistics.SearchForLemmas;
+import searchengine.model.*;
+import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
+import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
@@ -35,6 +35,8 @@ import java.util.concurrent.TimeUnit;
 public class StartIndexingServiceImp implements StartIndexingService{
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
+    private  final LemmaRepository lemmaRepository;
+    private final SearchIndexRepository searchIndexRepository;
     private final SitesList sites;
     @Getter
     private static  List<ParsingLinks> tasks;
@@ -92,9 +94,9 @@ public class StartIndexingServiceImp implements StartIndexingService{
     public List<ResultForIndexing> indexPageByUrl(String url){
         List<ResultForIndexing> resultForIndexingList = new ArrayList<>();
         ResultForIndexing resultForIndexing = new ResultForIndexing();
-        ParsingLinks parsingLinks = new ParsingLinks();
         String baseUrl = extractBaseUrl(url);
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(baseUrl);
+        ParsingLinks parsingLinks =  new ParsingLinks(siteForIndexing, url, 0, pageRepository, siteRepository,sites);
         if(siteForIndexing == null){
             resultForIndexing.setResult(false);
             resultForIndexing.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
@@ -109,8 +111,8 @@ public class StartIndexingServiceImp implements StartIndexingService{
         }
             if(parsingLinks.checkLink(url)){
                 int statusCode = HttpStatus.OK.value();
-                parsingLinks.savePageInRepository(statusCode, path, siteForIndexing);
-                siteForIndexing.setStatusTime(LocalDateTime.now());
+                parsingLinks.savePageInRepository(statusCode, url, siteForIndexing);
+                saveLemmaInLemmaRepository(path,siteForIndexing);
                 siteRepository.save(siteForIndexing);
                 resultForIndexing.setResult(true);
                 resultForIndexingList.add(resultForIndexing);
@@ -146,10 +148,9 @@ public class StartIndexingServiceImp implements StartIndexingService{
         long start = System.currentTimeMillis();
         tasks = new ArrayList<>();
         for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
-            ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0, pageRepository, siteRepository);
+            ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0, pageRepository, siteRepository,sites);
             tasks.add(task);
         }
-
         for (ParsingLinks task: tasks) {
             Runnable runnable = ()->{
                     ForkJoinPool pool = new ForkJoinPool();
@@ -223,5 +224,41 @@ public class StartIndexingServiceImp implements StartIndexingService{
             url += "/";
         }
         return url;
+    }
+
+    public void saveLemmaInLemmaRepository(String path, SiteForIndexing siteForIndexing) {
+        Page updatePage = pageRepository.findByPath(path);
+        String updatePageHtml = updatePage.getContent();
+        siteForIndexing.setStatusTime(LocalDateTime.now());
+        SearchForLemmas searchForLemmas = new SearchForLemmas();
+        HashMap<String, Integer> lemmasCountMap = searchForLemmas.gettingLemmasInText(updatePageHtml);
+        Set<String> lemmasSet = lemmasCountMap.keySet();
+        for (String lemmaForPage : lemmasSet) {
+            Lemma lemma = lemmaRepository.findByLemma(lemmaForPage);
+            if (lemma != null) {
+                int frequency = lemma.getFrequency();
+                lemma.setFrequency(frequency + 1);
+                lemmaRepository.save(lemma);
+                saveSearchIndexInSearchIndexRepository(lemmasCountMap, lemmaForPage, lemma, updatePage);
+                continue;
+            }
+            Lemma newLemma = new Lemma();
+            newLemma.setFrequency(1);
+            newLemma.setLemma(lemmaForPage);
+            newLemma.setSite(siteForIndexing);
+            lemmaRepository.save(newLemma);
+            saveSearchIndexInSearchIndexRepository(lemmasCountMap,lemmaForPage,newLemma,updatePage);
+        }
+
+    }
+
+    public void saveSearchIndexInSearchIndexRepository
+            (HashMap<String, Integer> lemmasCountMap, String lemmaForPage, Lemma lemma, Page updatePage) {
+        SearchIndex searchIndex = new SearchIndex();
+        int rank = lemmasCountMap.get(lemmaForPage);
+        searchIndex.setLemma(lemma);
+        searchIndex.setPage(updatePage);
+        searchIndex.setRank(rank);
+        searchIndexRepository.save(searchIndex);
     }
 }

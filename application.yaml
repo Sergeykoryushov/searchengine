@@ -12,7 +12,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: create
+      ddl-auto: none
     show-sql: true
 indexing-settings:
   sites:
@@ -24,8 +24,8 @@ indexing-settings:
       name: PlayBack.Ru
 #    - url: https://volochek.life/
 #      name: Volochek.Life
-    - url: http://radiomv.ru/
-      name: Radiomv.Ru
+#    - url: https://radiomv.ru/
+#      name: Radiomv.Ru
 #    - url: https://ipfran.ru/
 #      name: Ipfran.Ru
 #      https://dimonvideo.ru/

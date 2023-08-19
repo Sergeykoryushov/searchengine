@@ -30,7 +30,7 @@ public class ParsingLinks extends RecursiveAction {
     private SiteForIndexing site;
     private String url;
     private int depth;
-    private final int MAX_DEPTH = 2;
+    private final int MAX_DEPTH = 1;
     @Getter(AccessLevel.PUBLIC)
     private PageRepository pageRepository;
     private SiteRepository siteRepository;
@@ -41,12 +41,13 @@ public class ParsingLinks extends RecursiveAction {
     private static List<ParsingLinks> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
 
-    public ParsingLinks(SiteForIndexing site, String url, int depth, PageRepository pageRepository, SiteRepository siteRepository) {
+    public ParsingLinks(SiteForIndexing site, String url, int depth, PageRepository pageRepository, SiteRepository siteRepository,SitesList sites) {
         this.site = site;
         this.url = url;
         this.depth = depth;
         this.pageRepository = pageRepository;
         this.siteRepository = siteRepository;
+        this.sites = sites;
     }
 
     @Override
@@ -59,8 +60,9 @@ public class ParsingLinks extends RecursiveAction {
                     if (interrupted) {
                         return;
                     }
-                Connection connection = Jsoup.connect(url).ignoreContentType(true);
-                Document document = connection.get();
+//                Connection connection = Jsoup.connect(url).ignoreContentType(true);
+                Document document = Jsoup.connect(url).get();
+//                Document document = connection.get();
                 Elements elements = document.select("a[href]");
                 for (Element element : elements) {
                     if (interrupted) {
@@ -77,7 +79,7 @@ public class ParsingLinks extends RecursiveAction {
                         if (interrupted) {
                             return;
                         }
-                        ParsingLinks task = new ParsingLinks(site, link, depth + 1, pageRepository, siteRepository);
+                        ParsingLinks task = new ParsingLinks(site, link, depth + 1, pageRepository, siteRepository,sites);
                         task.fork();
                         task.join();
                     }
@@ -87,7 +89,7 @@ public class ParsingLinks extends RecursiveAction {
                 for (Site site: siteList) {
                     if (siteForIndexing.getUrl().equals(url)) {
                         saveSiteInStatusFailed(e,site);
-                        break;
+                        return;
                     }
                 }
                 int statusCode = -1;
@@ -100,7 +102,8 @@ public class ParsingLinks extends RecursiveAction {
     }
 
     public boolean checkLink(String link) {
-        return link.matches(regexForUrl) && (link.startsWith(url) || link.startsWith(setUrlWithoutDomain(url))) &&
+        return link.matches(regexForUrl) && (link.startsWith(url) || link.startsWith(setUrlWithoutDomain(url)))
+                &&
                 !link.contains("#") && !link.contains(".pdf");
     }
 
@@ -155,7 +158,7 @@ public class ParsingLinks extends RecursiveAction {
             html = htmlParser(link);
         }
         if(html == null){
-            return;
+            html = "";
         }
         Page page = new Page();
         page.setPath(linkWithoutRelativePath);

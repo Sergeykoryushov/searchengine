@@ -14,6 +14,7 @@ public class SearchForLemmas {
     private static final String[] partsOfSpeechNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
     public HashMap<String, Integer> gettingLemmasInText(String text) {
+        text = removeHtmlTags(text);
         HashMap<String, Integer> lemmasCountMap = new HashMap<>();
         String[] words = text.split(regexForSplitText);
         LuceneMorphology luceneMorph = null;

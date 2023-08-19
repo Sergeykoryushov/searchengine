@@ -19,10 +19,12 @@ public class SearchIndex {
     @JoinColumn(name = "page_id",referencedColumnName = "id")
     private Page page;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lemma_id",referencedColumnName = "id")
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "lemma_id", referencedColumnName = "id")
     private Lemma lemma;
 
     @Column(name = "ranking",nullable = false)
     private float rank;
+
+
 }

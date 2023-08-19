@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -24,4 +26,7 @@ public class Lemma {
 
     @Column(nullable = false)
     private int frequency;
+
+    @OneToMany(mappedBy = "lemma", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SearchIndex> searchIndexes = new ArrayList<>();
 }
