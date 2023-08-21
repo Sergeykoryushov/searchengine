@@ -13,13 +13,13 @@ import javax.persistence.*;
 public class SearchIndex {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private  int id;
+    private int id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "page_id",referencedColumnName = "id")
     private Page page;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY,cascade = CascadeType.REMOVE)
     @JoinColumn(name = "lemma_id", referencedColumnName = "id")
     private Lemma lemma;
 

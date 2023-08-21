@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -36,7 +37,9 @@ public class SiteForIndexing {
     @Column(nullable = false)
     private String name;
 
-    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "site", cascade = CascadeType.REMOVE)
     private List<Page> pages;
+    @OneToMany(mappedBy = "site")
+    private List<Lemma> lemmas;
 
 }

@@ -1,7 +1,6 @@
 package searchengine.dto.statistics;
 
 import lombok.*;
-import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -9,10 +8,10 @@ import org.jsoup.select.Elements;
 import org.springframework.http.HttpStatus;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
-import searchengine.model.Page;
-import searchengine.model.SiteForIndexing;
-import searchengine.model.SiteStatus;
+import searchengine.model.*;
+import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
+import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
 import searchengine.services.StartIndexingServiceImp;
 
@@ -21,7 +20,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.RecursiveAction;
 
 @Data
@@ -34,6 +35,8 @@ public class ParsingLinks extends RecursiveAction {
     @Getter(AccessLevel.PUBLIC)
     private PageRepository pageRepository;
     private SiteRepository siteRepository;
+    private LemmaRepository lemmaRepository;
+    private SearchIndexRepository searchIndexRepository;
     private SitesList sites;
     private volatile boolean interrupted = false;
     private boolean isCompleted = false;
@@ -41,13 +44,20 @@ public class ParsingLinks extends RecursiveAction {
     private static List<ParsingLinks> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
 
-    public ParsingLinks(SiteForIndexing site, String url, int depth, PageRepository pageRepository, SiteRepository siteRepository,SitesList sites) {
+    public ParsingLinks(SiteForIndexing site, String url, int depth,
+                        PageRepository pageRepository,
+                        SiteRepository siteRepository,
+                        SitesList sites,
+                        LemmaRepository lemmaRepository,
+                        SearchIndexRepository searchIndexRepository) {
         this.site = site;
         this.url = url;
         this.depth = depth;
         this.pageRepository = pageRepository;
         this.siteRepository = siteRepository;
         this.sites = sites;
+        this.lemmaRepository = lemmaRepository;
+        this.searchIndexRepository = searchIndexRepository;
     }
 
     @Override
@@ -60,9 +70,7 @@ public class ParsingLinks extends RecursiveAction {
                     if (interrupted) {
                         return;
                     }
-//                Connection connection = Jsoup.connect(url).ignoreContentType(true);
                 Document document = Jsoup.connect(url).get();
-//                Document document = connection.get();
                 Elements elements = document.select("a[href]");
                 for (Element element : elements) {
                     if (interrupted) {
@@ -72,6 +80,31 @@ public class ParsingLinks extends RecursiveAction {
                     if (checkLink(link)) {
                         int statusCode = HttpStatus.OK.value();
                         savePageInRepository(statusCode, link, site);
+
+
+                        Page updatePage = pageRepository.findByPath(urlWithoutRelativePath(link));
+                        String updatePageHtml = updatePage.getContent();
+                        SearchForLemmas searchForLemmas = new SearchForLemmas();
+                        HashMap<String, Integer> lemmasCountMap = searchForLemmas.gettingLemmasInText(updatePageHtml);
+                        Set<String> lemmasSet = lemmasCountMap.keySet();
+                        for (String lemmaForPage : lemmasSet) {
+                            Lemma lemma = lemmaRepository.findByLemma(lemmaForPage);
+                            if (lemma != null) {
+                                int frequency = lemma.getFrequency();
+                                lemma.setFrequency(frequency + 1);
+                                Lemma lemma1 = lemmaRepository.saveAndFlush(lemma);
+                                saveSearchIndexInSearchIndexRepository(lemmasCountMap, lemmaForPage,lemma1, updatePage);
+                                continue;
+                            }
+                            Lemma newLemma = new Lemma();
+                            newLemma.setFrequency(1);
+                            newLemma.setLemma(lemmaForPage);
+                            newLemma.setSite(siteForIndexing);
+                            Lemma lemma1 = lemmaRepository.saveAndFlush(newLemma);
+                            saveSearchIndexInSearchIndexRepository(lemmasCountMap,lemmaForPage,lemma1,updatePage);
+                        }
+
+
                         if(siteForIndexing.getSiteStatus() != SiteStatus.FAILED) {
                         siteForIndexing.setStatusTime(LocalDateTime.now());
                         }
@@ -79,7 +112,8 @@ public class ParsingLinks extends RecursiveAction {
                         if (interrupted) {
                             return;
                         }
-                        ParsingLinks task = new ParsingLinks(site, link, depth + 1, pageRepository, siteRepository,sites);
+                        ParsingLinks task = new ParsingLinks(site, link, depth + 1, pageRepository,
+                                siteRepository, sites,lemmaRepository, searchIndexRepository);
                         task.fork();
                         task.join();
                     }
@@ -148,7 +182,7 @@ public class ParsingLinks extends RecursiveAction {
         siteRepository.save(siteForIndexing);
     }
 
-    public void savePageInRepository(int statusCode, String link, SiteForIndexing siteForIndexing) {
+    public synchronized void savePageInRepository(int statusCode, String link, SiteForIndexing siteForIndexing) {
         String linkWithoutRelativePath = urlWithoutRelativePath(link);
         if (checkContainsLinkInRepository(linkWithoutRelativePath)) {
             return;
@@ -182,6 +216,16 @@ public class ParsingLinks extends RecursiveAction {
     }
     public void checkSiteEndIndexing(){
 
+    }
+
+    public void saveSearchIndexInSearchIndexRepository
+            (HashMap<String, Integer> lemmasCountMap, String lemmaForPage,Lemma lemma, Page updatePage) {
+        SearchIndex searchIndex = new SearchIndex();
+        float rank = lemmasCountMap.get(lemmaForPage);
+        searchIndex.setLemma(lemma);
+        searchIndex.setPage(updatePage);
+        searchIndex.setRank(rank);
+        searchIndexRepository.saveAndFlush(searchIndex);
     }
 }
 

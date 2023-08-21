@@ -2,13 +2,10 @@ package searchengine.services;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.jsoup.Connection;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.ParsingLinks;
@@ -20,14 +17,11 @@ import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -96,7 +90,8 @@ public class StartIndexingServiceImp implements StartIndexingService{
         ResultForIndexing resultForIndexing = new ResultForIndexing();
         String baseUrl = extractBaseUrl(url);
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(baseUrl);
-        ParsingLinks parsingLinks =  new ParsingLinks(siteForIndexing, url, 0, pageRepository, siteRepository,sites);
+        ParsingLinks parsingLinks =  new ParsingLinks(siteForIndexing, url, 0, pageRepository,
+                siteRepository,sites,lemmaRepository,searchIndexRepository);
         if(siteForIndexing == null){
             resultForIndexing.setResult(false);
             resultForIndexing.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
@@ -112,7 +107,7 @@ public class StartIndexingServiceImp implements StartIndexingService{
             if(parsingLinks.checkLink(url)){
                 int statusCode = HttpStatus.OK.value();
                 parsingLinks.savePageInRepository(statusCode, url, siteForIndexing);
-                saveLemmaInLemmaRepository(path,siteForIndexing);
+                saveLemma(path,siteForIndexing);
                 siteRepository.save(siteForIndexing);
                 resultForIndexing.setResult(true);
                 resultForIndexingList.add(resultForIndexing);
@@ -148,7 +143,8 @@ public class StartIndexingServiceImp implements StartIndexingService{
         long start = System.currentTimeMillis();
         tasks = new ArrayList<>();
         for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
-            ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0, pageRepository, siteRepository,sites);
+            ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0,
+                    pageRepository, siteRepository, sites, lemmaRepository, searchIndexRepository);
             tasks.add(task);
         }
         for (ParsingLinks task: tasks) {
@@ -177,6 +173,10 @@ public class StartIndexingServiceImp implements StartIndexingService{
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+//            List<Page> pageList = pageRepository.findAll();
+//            for (Page page: pageList) {
+//                indexPageByUrl("https://www.playback.ru" + page.getPath());
+//            }
         }
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");
@@ -226,10 +226,9 @@ public class StartIndexingServiceImp implements StartIndexingService{
         return url;
     }
 
-    public void saveLemmaInLemmaRepository(String path, SiteForIndexing siteForIndexing) {
+    public synchronized void saveLemma(String path, SiteForIndexing siteForIndexing) {
         Page updatePage = pageRepository.findByPath(path);
         String updatePageHtml = updatePage.getContent();
-        siteForIndexing.setStatusTime(LocalDateTime.now());
         SearchForLemmas searchForLemmas = new SearchForLemmas();
         HashMap<String, Integer> lemmasCountMap = searchForLemmas.gettingLemmasInText(updatePageHtml);
         Set<String> lemmasSet = lemmasCountMap.keySet();
@@ -238,27 +237,26 @@ public class StartIndexingServiceImp implements StartIndexingService{
             if (lemma != null) {
                 int frequency = lemma.getFrequency();
                 lemma.setFrequency(frequency + 1);
-                lemmaRepository.save(lemma);
-                saveSearchIndexInSearchIndexRepository(lemmasCountMap, lemmaForPage, lemma, updatePage);
+                lemmaRepository.saveAndFlush(lemma);
+                saveSearchIndexInSearchIndexRepository(lemmasCountMap, lemmaForPage, updatePage);
                 continue;
             }
             Lemma newLemma = new Lemma();
             newLemma.setFrequency(1);
             newLemma.setLemma(lemmaForPage);
             newLemma.setSite(siteForIndexing);
-            lemmaRepository.save(newLemma);
-            saveSearchIndexInSearchIndexRepository(lemmasCountMap,lemmaForPage,newLemma,updatePage);
+            lemmaRepository.saveAndFlush(newLemma);
+            saveSearchIndexInSearchIndexRepository(lemmasCountMap,lemmaForPage,updatePage);
         }
-
     }
-
     public void saveSearchIndexInSearchIndexRepository
-            (HashMap<String, Integer> lemmasCountMap, String lemmaForPage, Lemma lemma, Page updatePage) {
+            (HashMap<String, Integer> lemmasCountMap, String lemmaForPage, Page updatePage) {
         SearchIndex searchIndex = new SearchIndex();
-        int rank = lemmasCountMap.get(lemmaForPage);
-        searchIndex.setLemma(lemma);
+        Lemma lemma1 = lemmaRepository.findByLemma(lemmaForPage);
+        float rank = lemmasCountMap.get(lemmaForPage);
+        searchIndex.setLemma(lemma1);
         searchIndex.setPage(updatePage);
         searchIndex.setRank(rank);
-        searchIndexRepository.save(searchIndex);
+        searchIndexRepository.saveAndFlush(searchIndex);
     }
 }
