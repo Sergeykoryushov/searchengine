@@ -24,8 +24,8 @@ indexing-settings:
       name: PlayBack.Ru
 #    - url: https://volochek.life/
 #      name: Volochek.Life
-#    - url: https://radiomv.ru/
-#      name: Radiomv.Ru
+    - url: https://radiomv.ru/
+      name: Radiomv.Ru
 #    - url: https://ipfran.ru/
 #      name: Ipfran.Ru
 #      https://dimonvideo.ru/

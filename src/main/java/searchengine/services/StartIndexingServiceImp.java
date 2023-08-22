@@ -2,15 +2,13 @@ package searchengine.services;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.ParsingLinks;
 import searchengine.dto.statistics.ResultForIndexing;
-import searchengine.dto.statistics.SearchForLemmas;
+import searchengine.dto.statistics.SearchLemmas;
 import searchengine.model.*;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
@@ -19,7 +17,6 @@ import searchengine.repository.SiteRepository;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -99,15 +96,18 @@ public class StartIndexingServiceImp implements StartIndexingService{
             return resultForIndexingList;
         }
         String path = parsingLinks.urlWithoutRelativePath(url);
-        Page page = pageRepository.findByPath(path);
+        Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
         parsingLinks.setUrl(siteForIndexing.getUrl());
         if(page != null){
             pageRepository.delete(page);
         }
-            if(parsingLinks.checkLink(url)){
+            if(parsingLinks.checkLink(url, siteForIndexing)){
                 int statusCode = HttpStatus.OK.value();
                 parsingLinks.savePageInRepository(statusCode, url, siteForIndexing);
-                saveLemma(path,siteForIndexing);
+                SearchLemmas searchLemmas = new SearchLemmas(
+                        pageRepository,siteRepository,
+                        lemmaRepository,searchIndexRepository);
+                searchLemmas.saveLemma(path,siteForIndexing);
                 siteRepository.save(siteForIndexing);
                 resultForIndexing.setResult(true);
                 resultForIndexingList.add(resultForIndexing);
@@ -173,10 +173,6 @@ public class StartIndexingServiceImp implements StartIndexingService{
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-//            List<Page> pageList = pageRepository.findAll();
-//            for (Page page: pageList) {
-//                indexPageByUrl("https://www.playback.ru" + page.getPath());
-//            }
         }
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");
@@ -224,39 +220,5 @@ public class StartIndexingServiceImp implements StartIndexingService{
             url += "/";
         }
         return url;
-    }
-
-    public synchronized void saveLemma(String path, SiteForIndexing siteForIndexing) {
-        Page updatePage = pageRepository.findByPath(path);
-        String updatePageHtml = updatePage.getContent();
-        SearchForLemmas searchForLemmas = new SearchForLemmas();
-        HashMap<String, Integer> lemmasCountMap = searchForLemmas.gettingLemmasInText(updatePageHtml);
-        Set<String> lemmasSet = lemmasCountMap.keySet();
-        for (String lemmaForPage : lemmasSet) {
-            Lemma lemma = lemmaRepository.findByLemma(lemmaForPage);
-            if (lemma != null) {
-                int frequency = lemma.getFrequency();
-                lemma.setFrequency(frequency + 1);
-                lemmaRepository.saveAndFlush(lemma);
-                saveSearchIndexInSearchIndexRepository(lemmasCountMap, lemmaForPage, updatePage);
-                continue;
-            }
-            Lemma newLemma = new Lemma();
-            newLemma.setFrequency(1);
-            newLemma.setLemma(lemmaForPage);
-            newLemma.setSite(siteForIndexing);
-            lemmaRepository.saveAndFlush(newLemma);
-            saveSearchIndexInSearchIndexRepository(lemmasCountMap,lemmaForPage,updatePage);
-        }
-    }
-    public void saveSearchIndexInSearchIndexRepository
-            (HashMap<String, Integer> lemmasCountMap, String lemmaForPage, Page updatePage) {
-        SearchIndex searchIndex = new SearchIndex();
-        Lemma lemma1 = lemmaRepository.findByLemma(lemmaForPage);
-        float rank = lemmasCountMap.get(lemmaForPage);
-        searchIndex.setLemma(lemma1);
-        searchIndex.setPage(updatePage);
-        searchIndex.setRank(rank);
-        searchIndexRepository.saveAndFlush(searchIndex);
     }
 }
