@@ -95,13 +95,13 @@ public class StartIndexingServiceImp implements StartIndexingService{
             resultForIndexingList.add(resultForIndexing);
             return resultForIndexingList;
         }
-        String path = parsingLinks.urlWithoutRelativePath(url);
+        String path = parsingLinks.urlWithoutMainPath(url);
         Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
         parsingLinks.setUrl(siteForIndexing.getUrl());
         if(page != null){
             pageRepository.delete(page);
         }
-            if(parsingLinks.checkLink(url, siteForIndexing)){
+            if(parsingLinks.checkPath(url)){
                 int statusCode = HttpStatus.OK.value();
                 parsingLinks.savePageInRepository(statusCode, url, siteForIndexing);
                 SearchLemmas searchLemmas = new SearchLemmas(
@@ -157,10 +157,12 @@ public class StartIndexingServiceImp implements StartIndexingService{
                             return;
                         }
                         SiteForIndexing siteFromRepository = siteRepository.findByUrl(task.getSite().getUrl());
-                        if (siteFromRepository.getSiteStatus().equals(SiteStatus.INDEXING)) {
+                        if (!siteFromRepository.getSiteStatus().equals(SiteStatus.INDEXING)) {
+                            return;
+                        }
                             siteFromRepository.setSiteStatus(SiteStatus.INDEXED);
                             siteRepository.save(siteFromRepository);
-                        }
+
                     }
             };
             Thread thread = new Thread(runnable);
@@ -215,7 +217,7 @@ public class StartIndexingServiceImp implements StartIndexingService{
             return fullUrl;
         }
     }
-    public String addSlashToEnd(String url) {
+    public static String addSlashToEnd(String url) {
         if (!url.endsWith("/")) {
             url += "/";
         }
