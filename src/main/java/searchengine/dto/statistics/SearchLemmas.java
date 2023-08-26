@@ -77,7 +77,7 @@ public class SearchLemmas {
         }
         return false;
     }
-    public  String removeHtmlTags(String html) {
+    public String removeHtmlTags(String html) {
         Document doc = Jsoup.parse(html);
         return doc.text();
     }

@@ -9,9 +9,7 @@ import searchengine.services.StartIndexingServiceImp;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Main {
     private static String text = "\n" +
@@ -25,11 +23,32 @@ public class Main {
             "</html>\n" +
             "    ";
     public static void main(String[] args) {
-     SearchLemmas searchLemmas = new SearchLemmas();
-        HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasInText(text);
-        System.out.println(lemmasCountMap.size());
-        for (Map.Entry<String, Integer> entry : lemmasCountMap.entrySet()) {
-            System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue());
+        List<Integer> list1 = new ArrayList<>();
+        list1.add(1);
+        list1.add(3);
+        list1.add(4);
+
+
+        List<Integer> list2 = new ArrayList<>();
+        list2.add(7);
+        list2.add(9);
+        list2.add(5);
+        list2.add(8);
+        list2.add(2);
+
+        // Создаем Set для хранения уникальных значений
+        Set<Integer> uniqueValues = new HashSet<>();
+
+        // Добавляем значения из первого списка в Set
+        uniqueValues.addAll(list1);
+
+        // Оставляем только значения, которые есть во втором списке
+        list1.retainAll(list2);
+
+        // Создаем новый список с одинаковыми значениями
+        List<Integer> result = new ArrayList<>(uniqueValues);
+
+        System.out.println(list1); // Вывод: [2, 5]
         }
     }
-}
+

@@ -2,10 +2,11 @@ package searchengine.controllers;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import searchengine.dto.statistics.ResultForIndexing;
+import searchengine.dto.statistics.IndexingResponse;
+import searchengine.dto.statistics.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.services.SearchService;
 import searchengine.services.StartIndexingService;
-import searchengine.services.StartIndexingServiceImp;
 import searchengine.services.StatisticsService;
 
 import java.util.List;
@@ -16,10 +17,12 @@ public class ApiController {
 
     private final StatisticsService statisticsService;
     private final StartIndexingService startIndexingService;
+    private final SearchService searchService;
 
-    public ApiController(StatisticsService statisticsService,StartIndexingService startIndexingService) {
+    public ApiController(StatisticsService statisticsService, StartIndexingService startIndexingService, SearchService searchService) {
         this.startIndexingService = startIndexingService;
         this.statisticsService = statisticsService;
+        this.searchService = searchService;
     }
 
     @GetMapping("/statistics")
@@ -28,17 +31,22 @@ public class ApiController {
     }
 
     @GetMapping("/startIndexing")
-    public ResponseEntity<List<ResultForIndexing>> startIndexing() {
+    public ResponseEntity<List<IndexingResponse>> startIndexing() {
         return ResponseEntity.ok(startIndexingService.startIndex());
     }
 
     @GetMapping("/stopIndexing")
-    public ResponseEntity<List<ResultForIndexing>> stopIndexing() {
+    public ResponseEntity<List<IndexingResponse>> stopIndexing() {
         return ResponseEntity.ok(startIndexingService.stopIndex());
     }
 
     @PostMapping("/indexPage")
-    public ResponseEntity<List<ResultForIndexing>> indexPage(@RequestParam String url) {
+    public ResponseEntity<List<IndexingResponse>> indexPage(@RequestParam String url) {
         return ResponseEntity.ok(startIndexingService.indexPageByUrl(url));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<SearchResponse> search(@RequestParam String query) {
+        return ResponseEntity.ok(searchService.search(query));
     }
 }
