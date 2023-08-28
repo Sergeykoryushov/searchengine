@@ -6,14 +6,12 @@ import lombok.Data;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"error", "site", "siteName", "uri", "title", "snippet", "relevance"})
+@JsonPropertyOrder({"site", "siteName", "uri", "title", "snippet", "relevance"})
 public class SearchData {
-    private boolean result;
     private String site;
     private String siteName;
     private String uri;
     private String title;
     private String snippet;
     private double relevance;
-    private String error;
 }

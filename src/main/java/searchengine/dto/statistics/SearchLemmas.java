@@ -1,5 +1,6 @@
 package searchengine.dto.statistics;
 
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
@@ -26,7 +27,7 @@ public class SearchLemmas {
     private SiteRepository siteRepository;
     private LemmaRepository lemmaRepository;
     private SearchIndexRepository searchIndexRepository;
-    private static final String regexForSplitText = "[^А-Яа-яёЁ]+";
+    public static final String regexForSplitText = "[^А-Яа-яёЁ]+";
     private static final String[] partsOfSpeechNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
     public SearchLemmas(PageRepository pageRepository, SiteRepository siteRepository,
@@ -36,6 +37,7 @@ public class SearchLemmas {
         this.lemmaRepository = lemmaRepository;
         this.searchIndexRepository = searchIndexRepository;
     }
+
 
     public HashMap<String, Integer> gettingLemmasInText(String text) {
         text = removeHtmlTags(text);
@@ -87,12 +89,12 @@ public class SearchLemmas {
         HashMap<String, Integer> lemmasCountMap = gettingLemmasInText(updatePageHtml);
         Set<String> lemmasSet = lemmasCountMap.keySet();
         for (String lemmaForPage : lemmasSet) {
-            Lemma lemma = lemmaRepository.findByLemma(lemmaForPage);
+            Lemma lemma = lemmaRepository.findByLemmaAndSiteId(lemmaForPage,siteForIndexing.getId());
             if (lemma != null) {
                 int frequency = lemma.getFrequency();
                 lemma.setFrequency(frequency + 1);
                 lemmaRepository.saveAndFlush(lemma);
-                saveSearchIndexInSearchIndexRepository(lemmasCountMap, lemmaForPage, updatePage);
+                saveSearchIndexInSearchIndexRepository(lemmasCountMap, lemmaForPage, updatePage, siteForIndexing);
                 continue;
             }
             Lemma newLemma = new Lemma();
@@ -100,16 +102,16 @@ public class SearchLemmas {
             newLemma.setLemma(lemmaForPage);
             newLemma.setSite(siteForIndexing);
             lemmaRepository.saveAndFlush(newLemma);
-            saveSearchIndexInSearchIndexRepository(lemmasCountMap,lemmaForPage,updatePage);
+            saveSearchIndexInSearchIndexRepository(lemmasCountMap,lemmaForPage,updatePage, siteForIndexing);
         }
     }
 
     public void saveSearchIndexInSearchIndexRepository
-            (HashMap<String, Integer> lemmasCountMap, String lemmaForPage, Page updatePage) {
+            (HashMap<String, Integer> lemmasCountMap, String lemmaForPage, Page updatePage, SiteForIndexing siteForIndexing) {
         SearchIndex searchIndex = new SearchIndex();
-        Lemma lemma1 = lemmaRepository.findByLemma(lemmaForPage);
+        Lemma lemmaRepositoryByLemma = lemmaRepository.findByLemmaAndSiteId(lemmaForPage,siteForIndexing.getId());
         float rank = lemmasCountMap.get(lemmaForPage);
-        searchIndex.setLemma(lemma1);
+        searchIndex.setLemma(lemmaRepositoryByLemma);
         searchIndex.setPage(updatePage);
         searchIndex.setRank(rank);
         searchIndexRepository.saveAndFlush(searchIndex);

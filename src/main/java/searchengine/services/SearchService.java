@@ -6,5 +6,5 @@ import searchengine.dto.statistics.SearchResponse;
 import java.util.List;
 
 public interface SearchService {
-    SearchResponse search(String query);
+    public SearchResponse search(String query, int offset, int limit, String site);
 }

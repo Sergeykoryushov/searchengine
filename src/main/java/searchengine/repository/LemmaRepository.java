@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface LemmaRepository extends JpaRepository<Lemma,Integer> {
     Lemma findByLemma(String lemma);
+    Lemma findByLemmaAndSiteId(String lemma, int siteId);
     List<Lemma> findBySiteId(int siteId);
 }

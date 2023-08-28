@@ -10,4 +10,5 @@ import java.util.List;
 public interface SearchIndexRepository extends JpaRepository<SearchIndex,Integer> {
     @Query("SELECT si.page.id FROM SearchIndex si WHERE si.lemma.id = :lemmaId")
     List<Integer> findPageIdsByLemmaId(int lemmaId);
+    SearchIndex findByLemmaIdAndPageId(int lemmaId, int pageId);
 }
