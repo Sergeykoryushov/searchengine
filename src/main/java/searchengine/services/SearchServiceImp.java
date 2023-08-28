@@ -5,8 +5,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
-import searchengine.config.Site;
 import searchengine.config.SitesList;
+import searchengine.dto.statistics.ParsingLinks;
 import searchengine.dto.statistics.SearchData;
 import searchengine.dto.statistics.SearchLemmas;
 import searchengine.dto.statistics.SearchResponse;
@@ -29,25 +29,35 @@ public class SearchServiceImp implements SearchService{
     private final SearchIndexRepository searchIndexRepository;
     private final SitesList sites;
 
+
     @Override
     public SearchResponse search(String query, int offset, int limit, String site) {
-//        int siteId = 0;
-//        if(site != null){
-//            SiteForIndexing siteForIndexing = siteRepository.findByUrl(site);
-//            if(siteForIndexing != null) {
-//                siteId = siteForIndexing.getId();
-//            }
-//        }
+        List<Integer> allSitesId = new ArrayList<>();
         SearchLemmas searchLemmas = new SearchLemmas(pageRepository, siteRepository, lemmaRepository, searchIndexRepository);
         SearchResponse response = new SearchResponse();
         HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasInText(query);
         Set<String> queryLemmaSet = lemmasCountMap.keySet();
-        List<Integer> allSitesId = getAllSitesIdFromConfig();
-        List<Lemma> lemmaList = new ArrayList<>();
-        for (Integer siteId: allSitesId ) {
-             lemmaList = getSortedLemmaListFromRepository(queryLemmaSet, siteId);
+        if(site == null) {
+            allSitesId = getAllSitesIdFromConfig();
         }
-        List<Integer> resultQueryFromPagesIdList = getResultQueryFromPagesIdList(lemmaList);
+        if(site != null ){
+            SiteForIndexing siteForIndexing = siteRepository.findByUrl(StartIndexingServiceImp.addSlashToEnd(site));
+            if(siteForIndexing != null) {
+                int siteId = siteForIndexing.getId();
+                allSitesId.add(siteId);
+            }
+        }
+        List<Integer> resultQueryFromPagesIdList = new ArrayList<>();
+        List <Lemma> lemmaList = new ArrayList<>();
+        for (Integer siteId: allSitesId ) {
+            List<Lemma> lemmaListForOneSite = getLemmaListFromRepository(queryLemmaSet, siteId);
+            lemmaList.addAll(lemmaListForOneSite);
+            List<Integer> resultPagesIdListForOneSite = getResultQueryFromPagesIdList(lemmaListForOneSite);
+            resultQueryFromPagesIdList.addAll(resultPagesIdListForOneSite);
+        }
+        if(!lemmaList.isEmpty()) {
+            lemmaList.sort(Comparator.comparingInt(Lemma::getFrequency));
+        }
         if(resultQueryFromPagesIdList.isEmpty()) {
             response.setResult(true);
             response.setCount(0);
@@ -96,26 +106,18 @@ public class SearchServiceImp implements SearchService{
 
 
 
-    public List<Lemma> getSortedLemmaListFromRepository(Set<String> queryLemmaSet,int siteId){
+    public List<Lemma> getLemmaListFromRepository(Set<String> queryLemmaSet, int siteId){
         List<Lemma> lemmaList = new ArrayList<>();
-
         for (String lemma: queryLemmaSet) {
             Lemma lemmaFromRepository = null;
-            if(siteId != 0) {
                 lemmaFromRepository = lemmaRepository.findByLemmaAndSiteId(lemma,siteId);
                 System.out.println(lemmaFromRepository.getId());
                 System.out.println(lemmaFromRepository.getSite().getId());
-            } else {
-                lemmaFromRepository = lemmaRepository.findByLemma(lemma);
-                System.out.println(lemmaFromRepository.getSite().getId());
-            }
-
             if(lemmaFromRepository == null){
                 continue;
             }
             lemmaList.add(lemmaFromRepository);
         }
-        lemmaList.sort(Comparator.comparingInt(Lemma::getFrequency));
         return lemmaList;
     }
 
@@ -149,7 +151,9 @@ public class SearchServiceImp implements SearchService{
                 Page page = optionalPage.get();
                 for (Lemma lemma : lemmaList){
                     SearchIndex searchIndex =  searchIndexRepository.findByLemmaIdAndPageId(lemma.getId(), pageId);
-                    absolutRelevance +=searchIndex.getRank();
+                    if(searchIndex!=null) {
+                        absolutRelevance += searchIndex.getRank();
+                    }
                 }
                 pagesAbsolutRelevanceMap.put(page,absolutRelevance);
             }
