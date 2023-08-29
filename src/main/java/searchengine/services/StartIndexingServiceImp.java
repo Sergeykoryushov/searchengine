@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,68 +19,43 @@ import searchengine.repository.SiteRepository;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
+@Data
 public class StartIndexingServiceImp implements StartIndexingService{
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
-    private  final LemmaRepository lemmaRepository;
+    private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
     private final SitesList sites;
+    private final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
     @Getter
-    private static  List<ParsingLinks> tasks;
-    private  final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
-    private final List<Thread> threadList = new ArrayList<>();
+    private static List<ParsingLinks> tasks;
+    @Getter
+    private static CopyOnWriteArrayList<Thread> threadList = new CopyOnWriteArrayList<>();
+    @Getter
     private boolean stopAllIndexing = false;
 
-
     @Override
-    public List<IndexingResponse> startIndex() {
-        deleteSitesAllData();
-        List<IndexingResponse> indexingResponseList = addSiteForIndexing();
+    public IndexingResponse startIndex() {
+        IndexingResponse indexingResponse = new IndexingResponse();
+        if (!threadList.isEmpty()){
+            indexingResponse.setResult(false);
+            indexingResponse.setError("Индексация уже запущена");
+            return indexingResponse;
+        }
+        deleteAllSitesInRepository();
+        sitesForStartIndexingList.clear();
+        addSiteForIndexing();
         startIndexingAllSites();
-        return indexingResponseList;
+        indexingResponse.setResult(true);
+        return indexingResponse;
     }
 
-    @Override
-    public List<IndexingResponse> stopIndex() {
-        List<IndexingResponse> indexingResponseList = new ArrayList<>();
-        for (Thread thread: threadList){
-            if(thread.isAlive()){
-                stopAllIndexing = true;
-                List<ParsingLinks> parsingLinksList = ParsingLinks.getParsingTasks();
-                for (ParsingLinks parsingTask : parsingLinksList) {
-                    parsingTask.interruptTask();
-                }
-            }
-        }
-        for (Thread thread : threadList) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        List<SiteForIndexing> sitesIndexingNowList = siteRepository.findAll();
-        for (SiteForIndexing site : sitesIndexingNowList) {
-            IndexingResponse indexingResponse = new IndexingResponse();
-            if (!site.getSiteStatus().equals(SiteStatus.INDEXING)) {
-                indexingResponse.setResult(false);
-                indexingResponse.setError("Индексация не запущена");
-                indexingResponseList.add(indexingResponse);
-                continue;
-            }
-                site.setSiteStatus(SiteStatus.FAILED);
-                site.setLastError("Индексация остановлена пользователем");
-                indexingResponse.setResult(true);
-                indexingResponseList.add(indexingResponse);
-                siteRepository.save(site);
-        }
-        return indexingResponseList;
-    }
 
     @Override
     public List<IndexingResponse> indexPageByUrl(String url){
@@ -116,24 +92,15 @@ public class StartIndexingServiceImp implements StartIndexingService{
         return indexingResponseList;
     }
 
-    public List<IndexingResponse> addSiteForIndexing() {
+    public void addSiteForIndexing() {
         List<Site> siteList = sites.getSites();
-        List<IndexingResponse> indexingResponseList = new ArrayList<>();
-        List<SiteForIndexing> siteForIndexingList = siteRepository.findAll();
         for (Site site : siteList) {
-            if(checkSiteIndexing(site,siteForIndexingList, indexingResponseList)){
-                continue;
-            }
-            IndexingResponse indexingResponse = new IndexingResponse();
-            addSiteInSiteList(site);
-            indexingResponse.setResult(true);
-            indexingResponseList.add(indexingResponse);
+            addSiteInSiteListForStartIndexing(site);
         }
         siteRepository.saveAll(sitesForStartIndexingList);
-        return indexingResponseList;
     }
 
-    public void deleteSitesAllData() {
+    public void deleteAllSitesInRepository() {
         if (siteRepository.count() > 0) {
             siteRepository.deleteAll();
         }
@@ -162,25 +129,19 @@ public class StartIndexingServiceImp implements StartIndexingService{
                         }
                             siteFromRepository.setSiteStatus(SiteStatus.INDEXED);
                             siteRepository.save(siteFromRepository);
-
                     }
             };
             Thread thread = new Thread(runnable);
             thread.start();
             threadList.add(thread);
         }
-        for (Thread thread : threadList) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+        waitAllThreads();
+        threadList.clear();
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");
     }
 
-    public void addSiteInSiteList(Site site) {
+    public void addSiteInSiteListForStartIndexing(Site site) {
         SiteForIndexing newSiteForIndexing = new SiteForIndexing();
         newSiteForIndexing.setName(site.getName());
         newSiteForIndexing.setUrl(addSlashToEnd(site.getUrl()));
@@ -188,24 +149,6 @@ public class StartIndexingServiceImp implements StartIndexingService{
         sitesForStartIndexingList.add(newSiteForIndexing);
     }
 
-    public boolean checkSiteIndexing(Site site, List<SiteForIndexing> siteForIndexingList, List<IndexingResponse> indexingResponseList) {
-        if(siteForIndexingList== null){
-            return false;
-        }
-        for (SiteForIndexing siteForIndexing : siteForIndexingList) {
-            if (!siteForIndexing.getUrl().equals(site.getUrl())) {
-                return false;
-            }
-            if (siteForIndexing.getSiteStatus() == SiteStatus.INDEXING) {
-                IndexingResponse indexingResponse = new IndexingResponse();
-                indexingResponse.setResult(false);
-                indexingResponse.setError("Индексация уже запущена");
-                indexingResponseList.add(indexingResponse);
-                return true;
-            }
-        }
-        return false;
-    }
     public String extractBaseUrl(String fullUrl) {
         try {
             URI uri = new URI(fullUrl);
@@ -222,5 +165,14 @@ public class StartIndexingServiceImp implements StartIndexingService{
             url += "/";
         }
         return url;
+    }
+    public void waitAllThreads(){
+        for (Thread thread : threadList) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

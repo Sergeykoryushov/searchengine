@@ -5,7 +5,6 @@ import searchengine.dto.statistics.IndexingResponse;
 import java.util.List;
 
 public interface StartIndexingService {
-    List<IndexingResponse> startIndex();
-    List<IndexingResponse> stopIndex();
+    IndexingResponse startIndex();
     List<IndexingResponse> indexPageByUrl(String url);
 }
