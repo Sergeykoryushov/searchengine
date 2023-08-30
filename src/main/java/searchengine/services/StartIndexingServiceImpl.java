@@ -3,21 +3,17 @@ package searchengine.services;
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.ParsingLinks;
 import searchengine.dto.statistics.IndexingResponse;
-import searchengine.dto.statistics.SearchLemmas;
 import searchengine.model.*;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
@@ -26,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 @Data
-public class StartIndexingServiceImp implements StartIndexingService{
+public class StartIndexingServiceImpl implements StartIndexingService{
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
@@ -56,41 +52,6 @@ public class StartIndexingServiceImp implements StartIndexingService{
         return indexingResponse;
     }
 
-
-    @Override
-    public List<IndexingResponse> indexPageByUrl(String url){
-        List<IndexingResponse> indexingResponseList = new ArrayList<>();
-        IndexingResponse indexingResponse = new IndexingResponse();
-        String baseUrl = extractBaseUrl(url);
-        SiteForIndexing siteForIndexing = siteRepository.findByUrl(baseUrl);
-        ParsingLinks parsingLinks =  new ParsingLinks(siteForIndexing, url, 0, pageRepository,
-                siteRepository,sites,lemmaRepository,searchIndexRepository);
-        if(siteForIndexing == null){
-            indexingResponse.setResult(false);
-            indexingResponse.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
-            indexingResponseList.add(indexingResponse);
-            return indexingResponseList;
-        }
-        String path = parsingLinks.urlWithoutMainPath(url);
-        Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
-        parsingLinks.setUrl(siteForIndexing.getUrl());
-        if(page != null){
-            pageRepository.delete(page);
-        }
-            if(parsingLinks.checkPath(url)){
-                int statusCode = HttpStatus.OK.value();
-                parsingLinks.savePageInRepository(statusCode, url, siteForIndexing);
-                SearchLemmas searchLemmas = new SearchLemmas(
-                        pageRepository,siteRepository,
-                        lemmaRepository,searchIndexRepository);
-                searchLemmas.saveLemma(path,siteForIndexing);
-                siteRepository.save(siteForIndexing);
-                indexingResponse.setResult(true);
-                indexingResponseList.add(indexingResponse);
-            }
-
-        return indexingResponseList;
-    }
 
     public void addSiteForIndexing() {
         List<Site> siteList = sites.getSites();
@@ -149,17 +110,7 @@ public class StartIndexingServiceImp implements StartIndexingService{
         sitesForStartIndexingList.add(newSiteForIndexing);
     }
 
-    public String extractBaseUrl(String fullUrl) {
-        try {
-            URI uri = new URI(fullUrl);
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-            return scheme + "://" + host + "/";
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-            return fullUrl;
-        }
-    }
+
     public static String addSlashToEnd(String url) {
         if (!url.endsWith("/")) {
             url += "/";

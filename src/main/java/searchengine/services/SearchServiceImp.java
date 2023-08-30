@@ -6,7 +6,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
-import searchengine.dto.statistics.ParsingLinks;
 import searchengine.dto.statistics.SearchData;
 import searchengine.dto.statistics.SearchLemmas;
 import searchengine.dto.statistics.SearchResponse;
@@ -41,7 +40,7 @@ public class SearchServiceImp implements SearchService{
             allSitesId = getAllSitesIdFromConfig();
         }
         if(site != null ){
-            SiteForIndexing siteForIndexing = siteRepository.findByUrl(StartIndexingServiceImp.addSlashToEnd(site));
+            SiteForIndexing siteForIndexing = siteRepository.findByUrl(StartIndexingServiceImpl.addSlashToEnd(site));
             if(siteForIndexing != null) {
                 int siteId = siteForIndexing.getId();
                 allSitesId.add(siteId);

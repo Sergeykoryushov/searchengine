@@ -14,7 +14,7 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
-import searchengine.services.StartIndexingServiceImp;
+import searchengine.services.StartIndexingServiceImpl;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -102,7 +102,7 @@ public class ParsingLinks extends RecursiveAction {
     }
 
     public boolean checkPath(String link) {
-        String mainPath = StartIndexingServiceImp.addSlashToEnd(site.getUrl());
+        String mainPath = StartIndexingServiceImpl.addSlashToEnd(site.getUrl());
         return link.matches(regexForUrl)
                 && (link.startsWith(mainPath) || link.startsWith(setUrlWithoutDomain(mainPath)))
                 && !link.contains("#")

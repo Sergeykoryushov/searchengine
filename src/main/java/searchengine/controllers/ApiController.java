@@ -17,13 +17,16 @@ public class ApiController {
     private final StartIndexingService startIndexingService;
     private final SearchService searchService;
     private final StopIndexingService stopIndexingService;
+    private final IndexPageService  indexPageService;
 
     public ApiController(StatisticsService statisticsService, StartIndexingService startIndexingService,
-                         SearchService searchService, StopIndexingService stopIndexingService) {
+                         SearchService searchService, StopIndexingService stopIndexingService,
+                         IndexPageService indexPageService) {
         this.startIndexingService = startIndexingService;
         this.statisticsService = statisticsService;
         this.searchService = searchService;
         this.stopIndexingService = stopIndexingService;
+        this.indexPageService = indexPageService;
     }
 
     @GetMapping("/statistics")
@@ -42,8 +45,8 @@ public class ApiController {
     }
 
     @PostMapping("/indexPage")
-    public ResponseEntity<List<IndexingResponse>> indexPage(@RequestParam String url) {
-        return ResponseEntity.ok(startIndexingService.indexPageByUrl(url));
+    public ResponseEntity<IndexingResponse> indexPage(@RequestParam String url) {
+        return ResponseEntity.ok(indexPageService.indexPageByUrl(url));
     }
 
     @GetMapping("/search")

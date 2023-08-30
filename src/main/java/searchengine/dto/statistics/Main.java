@@ -1,14 +1,5 @@
 package searchengine.dto.statistics;
 
-import org.apache.lucene.morphology.LuceneMorphology;
-import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import searchengine.services.StartIndexingServiceImp;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.*;
 
 public class Main {

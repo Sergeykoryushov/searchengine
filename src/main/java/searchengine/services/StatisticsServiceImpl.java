@@ -15,9 +15,7 @@ import searchengine.repository.SiteRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -44,7 +42,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         List<Site> sitesList = sites.getSites();
         for(int i = 0; i < sitesList.size(); i++) {
             Site site = sitesList.get(i);
-            SiteForIndexing siteFromRepository = siteRepository.findByUrl(StartIndexingServiceImp.addSlashToEnd(site.getUrl()));
+            SiteForIndexing siteFromRepository = siteRepository.findByUrl(StartIndexingServiceImpl.addSlashToEnd(site.getUrl()));
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
