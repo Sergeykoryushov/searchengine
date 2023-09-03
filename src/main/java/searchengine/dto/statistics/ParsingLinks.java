@@ -26,93 +26,64 @@ import java.util.Optional;
 import java.util.concurrent.RecursiveAction;
 
 @Data
-@NoArgsConstructor
+//@NoArgsConstructor
+@RequiredArgsConstructor
 public class ParsingLinks extends RecursiveAction {
-    private SiteForIndexing site;
-    private String url;
-    private int depth;
-    private final int MAX_DEPTH = 1;
-    @Getter(AccessLevel.PUBLIC)
-    private PageRepository pageRepository;
-    private SiteRepository siteRepository;
-    private LemmaRepository lemmaRepository;
-    private SearchIndexRepository searchIndexRepository;
-    private SitesList sites;
+    private final SiteForIndexing site;
+
+    private final String url;
+    private final int siteDepth;
+    private final static int MAX_DEPTH = 1;
+    private final PageRepository pageRepository;
+    private final SiteRepository siteRepository;
+    private final SitesList sites;
+    private final LemmaRepository lemmaRepository;
+    private final SearchIndexRepository searchIndexRepository;
     private volatile boolean interrupted = false;
     private boolean isCompleted = false;
     @Getter
     private static List<ParsingLinks> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
 
-    public ParsingLinks(SiteForIndexing site, String url, int depth,
-                        PageRepository pageRepository,
-                        SiteRepository siteRepository,
-                        SitesList sites,
-                        LemmaRepository lemmaRepository,
-                        SearchIndexRepository searchIndexRepository) {
-        this.site = site;
-        this.url = url;
-        this.depth = depth;
-        this.pageRepository = pageRepository;
-        this.siteRepository = siteRepository;
-        this.sites = sites;
-        this.lemmaRepository = lemmaRepository;
-        this.searchIndexRepository = searchIndexRepository;
-    }
+//    public ParsingLinks(SiteForIndexing site, String url, int siteDepth, PageRepository pageRepository, SiteRepository siteRepository,
+//                        SitesList sites, LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository) {
+//        this.site = site;
+//        this.url = url;
+//        this.siteDepth = siteDepth;
+//        this.pageRepository = pageRepository;
+//        this.siteRepository = siteRepository;
+//        this.sites = sites;
+//        this.lemmaRepository = lemmaRepository;
+//        this.searchIndexRepository = searchIndexRepository;
+//    }
 
     @Override
     protected void compute() {
         parsingTasks.add(this);
-        if (depth > MAX_DEPTH) {
+        if (siteDepth > MAX_DEPTH) {
             return;
         }
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
         SearchLemmas searchLemmas = new SearchLemmas(pageRepository, siteRepository, lemmaRepository, searchIndexRepository);
         try {
-            Thread.sleep(150);
-            if (interrupted) {
-                return;
-            }
-            Connection.Response response = Jsoup.connect(url).execute();
-            Document document = response.parse();
-            int statusCode = response.statusCode();
-            Elements elements = document.select("a[href]");
-            for (Element element : elements) {
-                if (interrupted) {
-                    return;
-                }
-                indexingOnePath(element, siteForIndexing, statusCode, searchLemmas);
-            }
-        } catch (IOException | InterruptedException e) {
-            List<Site> siteList = sites.getSites();
-            Optional<Site> foundSite = siteList.stream().filter(site -> site.getUrl().equals(url)).findFirst();
-            if (foundSite.isPresent()) {
-                Site site = foundSite.get();
-                saveSiteInStatusFailed(e, site);
-                return;
-            }
-            int statusCode = HttpStatus.NOT_FOUND.value();
-            if (e instanceof org.jsoup.HttpStatusException) {
-                statusCode = ((org.jsoup.HttpStatusException) e).getStatusCode();
-            }
-            if (!checkContainsPathInRepository(url, siteForIndexing)) {
-                savePageInRepository(statusCode, url, siteForIndexing);
-            }
+            connectingAndIndexingSite(siteForIndexing, searchLemmas);
+        } catch (IOException | InterruptedException exception) {
+            exceptionHandling(exception, siteForIndexing);
         }
     }
 
-    public boolean checkPath(String link) {
-        String mainPath = StartIndexingServiceImpl.addSlashToEnd(site.getUrl());
+    public boolean checkLink(String link) {
+        String path = StartIndexingServiceImpl.addSlashToEnd(site.getUrl());
         return link.matches(regexForUrl)
-                && (link.startsWith(mainPath) || link.startsWith(setUrlWithoutDomain(mainPath)))
+                && (link.startsWith(path) || link.startsWith(setUrlWithoutDomain(path)))
                 && !link.contains("#")
                 && !link.contains(".pdf");
     }
 
-    public String htmlParser(String url) {
+    public String getHtml(String path) {
         String html = null;
         try {
-            Document doc = Jsoup.connect(url).get();
+            Document doc = Jsoup.connect(path).get();
             html = doc.html();
         } catch (Exception e) {
             e.printStackTrace();
@@ -135,32 +106,31 @@ public class ParsingLinks extends RecursiveAction {
         return targetUrl;
     }
 
-    public synchronized boolean checkContainsPathInRepository(String link, SiteForIndexing siteForIndexing) {
-        Page page = pageRepository.findByPathAndSiteId(link, siteForIndexing.getId());
+    public synchronized boolean checkContainsPathInRepository(String path, SiteForIndexing siteForIndexing) {
+        Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
         return page != null;
     }
 
 
-    public boolean saveSiteInStatusFailed(Exception e, Site site) {
+    public void saveSiteInStatusFailed(Exception e, Site site) {
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
         siteForIndexing.setName(site.getName());
         siteForIndexing.setUrl(site.getUrl());
         siteForIndexing.setSiteStatus(SiteStatus.FAILED);
         siteForIndexing.setLastError(e.getMessage());
         siteRepository.save(siteForIndexing);
-        return true;
     }
 
     public synchronized boolean savePageInRepository(int statusCode, String path, SiteForIndexing siteForIndexing) {
         String urlWithoutMainPath = urlWithoutMainPath(path);
-        if(checkContainsPathInRepository(urlWithoutMainPath,siteForIndexing)){
+        if (checkContainsPathInRepository(urlWithoutMainPath, siteForIndexing)) {
             return false;
         }
-        String html= null;
-        if(statusCode == HttpStatus.OK.value()){
-            html = htmlParser(path);
+        String html = null;
+        if (statusCode == HttpStatus.OK.value()) {
+            html = getHtml(path);
         }
-        if(html == null){
+        if (html == null) {
             html = "";
         }
         Page page = new Page();
@@ -171,38 +141,75 @@ public class ParsingLinks extends RecursiveAction {
         pageRepository.save(page);
         return true;
     }
+
     public void interruptTask() {
         interrupted = true;
     }
 
-    public String urlWithoutMainPath(String urlString) {
+    public String urlWithoutMainPath(String path) {
         try {
-            URL url = new URL(urlString);
+            URL url = new URL(path);
             return url.getPath();
         } catch (Exception e) {
             e.printStackTrace();
-            return urlString;
+            return path;
         }
     }
-    public void indexingOnePath(Element element,SiteForIndexing siteForIndexing, int statusCode, SearchLemmas searchLemmas){
-        String path = element.absUrl("href");
-        if (!checkPath(path)) {
+
+    public void connectingAndIndexingSite(SiteForIndexing siteForIndexing, SearchLemmas searchLemmas) throws IOException, InterruptedException {
+        Thread.sleep(150);
+        if (interrupted) {
             return;
         }
-            if(savePageInRepository(statusCode, path, site) && statusCode == HttpStatus.OK.value()){
-                searchLemmas.saveLemma(urlWithoutMainPath(path),siteForIndexing);
-                if(siteForIndexing.getSiteStatus() != SiteStatus.FAILED) {
-                    siteForIndexing.setStatusTime(LocalDateTime.now());
-                }
-                siteRepository.save(siteForIndexing);
-            }
+        Connection.Response response = Jsoup.connect(url).execute();
+        Document document = response.parse();
+        int statusCode = response.statusCode();
+        Elements elements = document.select("a[href]");
+        for (Element element : elements) {
             if (interrupted) {
                 return;
             }
-            ParsingLinks task = new ParsingLinks(site, path, depth + 1, pageRepository,
-                    siteRepository, sites,lemmaRepository, searchIndexRepository);
-            task.fork();
-            task.join();
+            indexingOnePath(element, siteForIndexing, statusCode, searchLemmas);
+        }
+    }
+
+    public void exceptionHandling(Exception e, SiteForIndexing siteForIndexing) {
+        List<Site> siteList = sites.getSites();
+        Optional<Site> foundSite = siteList.stream().filter(site -> site.getUrl().equals(url)).findFirst();
+        if (foundSite.isPresent()) {
+            Site site = foundSite.get();
+            saveSiteInStatusFailed(e, site);
+            return;
+        }
+        int statusCode = HttpStatus.NOT_FOUND.value();
+        if (e instanceof org.jsoup.HttpStatusException) {
+            statusCode = ((org.jsoup.HttpStatusException) e).getStatusCode();
+        }
+        if (!checkContainsPathInRepository(url, siteForIndexing)) {
+            savePageInRepository(statusCode, url, siteForIndexing);
+        }
+    }
+
+
+    public void indexingOnePath(Element element, SiteForIndexing siteForIndexing, int statusCode, SearchLemmas searchLemmas) {
+        String path = element.absUrl("href");
+        if (!checkLink(path)) {
+            return;
+        }
+        if (savePageInRepository(statusCode, path, site) && statusCode == HttpStatus.OK.value()) {
+            searchLemmas.saveLemma(urlWithoutMainPath(path), siteForIndexing);
+            if (siteForIndexing.getSiteStatus() != SiteStatus.FAILED) {
+                siteForIndexing.setStatusTime(LocalDateTime.now());
+            }
+            siteRepository.save(siteForIndexing);
+        }
+        if (interrupted) {
+            return;
+        }
+        ParsingLinks task = new ParsingLinks(site, path, siteDepth + 1, pageRepository,
+                siteRepository, sites, lemmaRepository, searchIndexRepository);
+        task.fork();
+        task.join();
     }
 }
 

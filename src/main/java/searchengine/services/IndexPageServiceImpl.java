@@ -41,11 +41,10 @@ public class IndexPageServiceImpl implements IndexPageService {
         }
         String path = parsingLinks.urlWithoutMainPath(url);
         Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
-        parsingLinks.setUrl(siteForIndexing.getUrl());
         if (page != null) {
             pageRepository.delete(page);
         }
-        if (parsingLinks.checkPath(url)) {
+        if (parsingLinks.checkLink(url)) {
             int statusCode = HttpStatus.OK.value();
             parsingLinks.savePageInRepository(statusCode, url, siteForIndexing);
             SearchLemmas searchLemmas = new SearchLemmas(
