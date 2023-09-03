@@ -14,6 +14,7 @@ import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -45,11 +46,15 @@ public class IndexPageServiceImpl implements IndexPageService {
             pageRepository.delete(page);
         }
         if (parsingLinks.checkLink(url)) {
-            int statusCode = HttpStatus.OK.value();
-            parsingLinks.savePageInRepository(statusCode, url, siteForIndexing);
             SearchLemmas searchLemmas = new SearchLemmas(
                     pageRepository, siteRepository,
                     lemmaRepository, searchIndexRepository);
+            try {
+                boolean updateOnePath = true;
+                parsingLinks.connectingAndIndexingSite(siteForIndexing,searchLemmas, updateOnePath);
+            } catch (IOException | InterruptedException exception) {
+                exception.printStackTrace();
+            }
             searchLemmas.saveLemma(path, siteForIndexing);
             siteRepository.save(siteForIndexing);
             indexingResponse.setResult(true);

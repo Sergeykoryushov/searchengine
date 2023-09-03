@@ -110,8 +110,6 @@ public class SearchServiceImp implements SearchService{
         for (String lemma: queryLemmaSet) {
             Lemma lemmaFromRepository = null;
                 lemmaFromRepository = lemmaRepository.findByLemmaAndSiteId(lemma,siteId);
-                System.out.println(lemmaFromRepository.getId());
-                System.out.println(lemmaFromRepository.getSite().getId());
             if(lemmaFromRepository == null){
                 continue;
             }
