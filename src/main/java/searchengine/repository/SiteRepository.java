@@ -9,5 +9,4 @@ import java.util.List;
 
 public interface SiteRepository extends JpaRepository<SiteForIndexing,Integer> {
     SiteForIndexing findByUrl(String url);
-    List<SiteForIndexing> findBySiteStatus(SiteStatus siteStatus);
 }

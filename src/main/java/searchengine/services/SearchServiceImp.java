@@ -5,7 +5,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
-import searchengine.config.SitesList;
 import searchengine.dto.statistics.SearchData;
 import searchengine.dto.statistics.SearchLemmas;
 import searchengine.dto.statistics.SearchResponse;
@@ -26,26 +25,15 @@ public class SearchServiceImp implements SearchService{
     private final SiteRepository siteRepository;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
-    private final SitesList sites;
 
 
     @Override
     public SearchResponse search(String query, int offset, int limit, String site) {
-        List<Integer> allSitesId = new ArrayList<>();
-        SearchLemmas searchLemmas = new SearchLemmas(pageRepository, siteRepository, lemmaRepository, searchIndexRepository);
+        SearchLemmas searchLemmas = new SearchLemmas(pageRepository, lemmaRepository, searchIndexRepository);
         SearchResponse response = new SearchResponse();
-        HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasInText(query);
+        HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasAndCountInText(query);
         Set<String> queryLemmaSet = lemmasCountMap.keySet();
-        if(site == null) {
-            allSitesId = getAllSitesIdFromConfig();
-        }
-        if(site != null ){
-            SiteForIndexing siteForIndexing = siteRepository.findByUrl(StartIndexingServiceImpl.addSlashToEnd(site));
-            if(siteForIndexing != null) {
-                int siteId = siteForIndexing.getId();
-                allSitesId.add(siteId);
-            }
-        }
+        List<Integer> allSitesId = getAllSitesIdFromConfig(site);
         List<Integer> resultQueryFromPagesIdList = new ArrayList<>();
         List <Lemma> lemmaList = new ArrayList<>();
         for (Integer siteId: allSitesId ) {
@@ -63,21 +51,7 @@ public class SearchServiceImp implements SearchService{
             return response;
         }
         HashMap<Page, Float> sortedRelativeRelevanceMap = getSortedRelativeRelevanceMap(resultQueryFromPagesIdList, lemmaList);
-        List<SearchData> data = new ArrayList<>();
-        for (Map.Entry<Page, Float> entry : sortedRelativeRelevanceMap.entrySet()) {
-            SearchData searchData = new SearchData();
-            Float relativeRelevance = entry.getValue();
-            Page page = entry.getKey();
-            String russianText = getRussianText(page.getContent());
-            String snippet = getSnippet(russianText,query);
-            searchData.setSite(deleteSlashToEnd(page.getSite().getUrl()));
-            searchData.setSiteName(page.getSite().getName());
-            searchData.setUri(page.getPath());
-            searchData.setTitle(getHtmlTitle(page.getContent()));
-            searchData.setSnippet(snippet);
-            searchData.setRelevance(relativeRelevance);
-            data.add(searchData);
-        }
+        List<SearchData> data = createSearchDataList(sortedRelativeRelevanceMap, query);
         response.setResult(true);
         response.setCount(resultQueryFromPagesIdList.size());
         response.setData(data);
@@ -108,8 +82,7 @@ public class SearchServiceImp implements SearchService{
     public List<Lemma> getLemmaListFromRepository(Set<String> queryLemmaSet, int siteId){
         List<Lemma> lemmaList = new ArrayList<>();
         for (String lemma: queryLemmaSet) {
-            Lemma lemmaFromRepository = null;
-                lemmaFromRepository = lemmaRepository.findByLemmaAndSiteId(lemma,siteId);
+            Lemma lemmaFromRepository = lemmaRepository.findByLemmaAndSiteId(lemma,siteId);
             if(lemmaFromRepository == null){
                 continue;
             }
@@ -170,7 +143,6 @@ public class SearchServiceImp implements SearchService{
     public String getHtmlTitle(String html) {
         Document document = Jsoup.parse(html);
         Element titleElement = document.select("title").first();
-
         if (titleElement != null) {
             return titleElement.text();
         }
@@ -185,34 +157,57 @@ public class SearchServiceImp implements SearchService{
             matchPositions.add(index);
             index = text.toLowerCase().indexOf(query.toLowerCase(), index + 1);
         }
-
         StringBuilder snippetBuilder = new StringBuilder();
         for (int position : matchPositions) {
             int start = Math.max(0, position - contextLength);
             int end = Math.min(text.length(), position + query.length() + contextLength);
-
             String context = text.substring(start, end);
             String snippet = context.replaceAll(query, "<b>" + query + "</b>");
-
             snippetBuilder.append(snippet);
             snippetBuilder.append(" ... ");
         }
-
         return snippetBuilder.toString();
     }
 
     public String getRussianText(String text){
         SearchLemmas search = new SearchLemmas();
         text = search.removeHtmlTags(text);
-        String[] words = text.split(SearchLemmas.regexForSplitText);
-        return String.join(" ", words);
+        String[] russianWords = text.split(SearchLemmas.regexForSplitText);
+        return String.join(" ", russianWords);
     }
-    public List<Integer> getAllSitesIdFromConfig(){
+    public List<Integer> getAllSitesIdFromConfig(String site){
         List<Integer> allSitesId = new ArrayList<>();
-        List<SiteForIndexing> siteList = siteRepository.findAll();
-        for (SiteForIndexing site: siteList) {
-            allSitesId.add(site.getId());
+        if (site == null) {
+            List<SiteForIndexing> siteList = siteRepository.findAll();
+            for (SiteForIndexing siteForIndexing: siteList) {
+                allSitesId.add(siteForIndexing.getId());
+            }
+            return allSitesId;
+        }
+        SiteForIndexing siteForIndexing = siteRepository.findByUrl(StartIndexingServiceImpl.addSlashToEnd(site));
+        if(siteForIndexing != null) {
+            int siteId = siteForIndexing.getId();
+            allSitesId.add(siteId);
         }
         return allSitesId;
+    }
+
+    private List<SearchData> createSearchDataList(HashMap<Page, Float> sortedRelativeRelevanceMap, String query){
+        List<SearchData> data = new ArrayList<>();
+        for (Map.Entry<Page, Float> entry : sortedRelativeRelevanceMap.entrySet()) {
+            SearchData searchData = new SearchData();
+            Float relativeRelevance = entry.getValue();
+            Page page = entry.getKey();
+            String russianText = getRussianText(page.getContent());
+            String snippet = getSnippet(russianText,query);
+            searchData.setSite(deleteSlashToEnd(page.getSite().getUrl()));
+            searchData.setSiteName(page.getSite().getName());
+            searchData.setUri(page.getPath());
+            searchData.setTitle(getHtmlTitle(page.getContent()));
+            searchData.setSnippet(snippet);
+            searchData.setRelevance(relativeRelevance);
+            data.add(searchData);
+        }
+        return data;
     }
 }

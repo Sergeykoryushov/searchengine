@@ -8,5 +8,4 @@ import java.util.List;
 public interface PageRepository extends JpaRepository<Page,Integer> {
     Page findByPathAndSiteId(String path, int siteId);
     List<Page> findBySiteId(int siteId);
-    Page findById(int pageId);
 }

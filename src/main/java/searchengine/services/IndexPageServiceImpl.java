@@ -1,7 +1,6 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.IndexingResponse;
@@ -46,12 +45,10 @@ public class IndexPageServiceImpl implements IndexPageService {
             pageRepository.delete(page);
         }
         if (parsingLinks.checkLink(url)) {
-            SearchLemmas searchLemmas = new SearchLemmas(
-                    pageRepository, siteRepository,
-                    lemmaRepository, searchIndexRepository);
+            SearchLemmas searchLemmas = new SearchLemmas(pageRepository, lemmaRepository, searchIndexRepository);
             try {
-                boolean updateOnePath = true;
-                parsingLinks.connectingAndIndexingSite(siteForIndexing,searchLemmas, updateOnePath);
+                boolean updatePath = true;
+                parsingLinks.connectingAndIndexingSite(siteForIndexing,searchLemmas, updatePath);
             } catch (IOException | InterruptedException exception) {
                 exception.printStackTrace();
             }

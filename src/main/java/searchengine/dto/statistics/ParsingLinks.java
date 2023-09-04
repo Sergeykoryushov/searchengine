@@ -50,7 +50,7 @@ public class ParsingLinks extends RecursiveAction {
             return;
         }
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
-        SearchLemmas searchLemmas = new SearchLemmas(pageRepository, siteRepository, lemmaRepository, searchIndexRepository);
+        SearchLemmas searchLemmas = new SearchLemmas(pageRepository, lemmaRepository, searchIndexRepository);
         try {
             boolean updatePath = false;
             connectingAndIndexingSite(siteForIndexing, searchLemmas, updatePath);
@@ -163,8 +163,7 @@ public class ParsingLinks extends RecursiveAction {
         }
         if (!checkContainsPathInRepository(url, siteForIndexing)) {
             String html = null;
-            SearchLemmas searchLemmas = new SearchLemmas();
-            OnePathInfo info = new OnePathInfo(siteForIndexing, statusCode, searchLemmas, html);
+            OnePathInfo info = new OnePathInfo(siteForIndexing, statusCode, html);
             savePageInRepository(url, info);
         }
     }

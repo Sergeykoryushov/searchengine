@@ -1,6 +1,5 @@
 package searchengine.dto.statistics;
 
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
@@ -14,7 +13,6 @@ import searchengine.model.SiteForIndexing;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
-import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -24,36 +22,33 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class SearchLemmas {
     private PageRepository pageRepository;
-    private SiteRepository siteRepository;
     private LemmaRepository lemmaRepository;
     private SearchIndexRepository searchIndexRepository;
     public static final String regexForSplitText = "[^А-Яа-яёЁ]+";
     private static final String[] partsOfSpeechNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
-    public SearchLemmas(PageRepository pageRepository, SiteRepository siteRepository,
-                        LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository) {
+    public SearchLemmas(PageRepository pageRepository, LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository) {
         this.pageRepository = pageRepository;
-        this.siteRepository = siteRepository;
         this.lemmaRepository = lemmaRepository;
         this.searchIndexRepository = searchIndexRepository;
     }
 
 
-    public HashMap<String, Integer> gettingLemmasInText(String text) {
+    public HashMap<String, Integer> gettingLemmasAndCountInText(String text) {
         text = removeHtmlTags(text);
         HashMap<String, Integer> lemmasCountMap = new HashMap<>();
-        String[] words = text.split(regexForSplitText);
+        String[] russianWords = text.split(regexForSplitText);
         LuceneMorphology luceneMorph = null;
         try {
             luceneMorph = new RussianLuceneMorphology();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        if(words.length < 1){
+        if(russianWords.length < 1){
             return lemmasCountMap;
         }
-        for (String word : words) {
-            purificationFromOfficialPartsOfSpeech(luceneMorph, word, lemmasCountMap);
+        for (String russianWord : russianWords) {
+            purificationFromOfficialPartsOfSpeech(luceneMorph, russianWord, lemmasCountMap);
         }
         return lemmasCountMap;
     }
@@ -86,7 +81,7 @@ public class SearchLemmas {
     public synchronized void saveLemma(String path, SiteForIndexing siteForIndexing) {
         Page updatePage = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
         String updatePageHtml = updatePage.getContent();
-        HashMap<String, Integer> lemmasCountMap = gettingLemmasInText(updatePageHtml);
+        HashMap<String, Integer> lemmasCountMap = gettingLemmasAndCountInText(updatePageHtml);
         Set<String> lemmasSet = lemmasCountMap.keySet();
         for (String lemmaForPage : lemmasSet) {
             Lemma lemma = lemmaRepository.findByLemmaAndSiteId(lemmaForPage,siteForIndexing.getId());
