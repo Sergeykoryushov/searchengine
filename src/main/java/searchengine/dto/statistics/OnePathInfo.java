@@ -1,8 +1,6 @@
 package searchengine.dto.statistics;
 
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import org.jsoup.nodes.Element;
 import searchengine.model.SiteForIndexing;
 
 @Data
