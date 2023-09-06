@@ -46,8 +46,11 @@ public class StartIndexingServiceImpl implements StartIndexingService{
         }
         deleteAllSitesInRepository();
         sitesForStartIndexingList.clear();
+        threadList.clear();
         addSiteForIndexing();
-        startIndexingAllSites();
+        Runnable runnable = this::startIndexingAllSites;
+        Thread thread = new Thread(runnable);
+        thread.start();
         indexingResponse.setResult(true);
         return indexingResponse;
     }
@@ -97,7 +100,6 @@ public class StartIndexingServiceImpl implements StartIndexingService{
             threadList.add(thread);
         }
         waitAllThreads();
-        threadList.clear();
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");
     }
