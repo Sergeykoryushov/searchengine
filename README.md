@@ -1,25 +1,54 @@
-# searchengine
-## *My name is Sergey Koryushov!*
+# **searchengine :exclamation: **
+## ***My name is Sergey Koryushov! :mortar_board:***
 
 Этот проект Search Engine является Поисковым движком по сайтам, ссылки которых задаются и названия сайтов задаются в конфигурации проекта application.yaml.
 
-Скрин файла конфигурации:
-![Sites](https://github.com/alexves-b/searchengine/assets/135314843/e321aef7-134e-405f-8aeb-a0813cc49069)
+Код c кофигурацционного файла:
+```java 
+server:
+        port: 8080
+indexing-settings:
+        sites:
+        - url: https://www.lenta.ru/
+        name: Лента.ру
+        - url: https://www.skillbox.ru/
+        name: Skillbox
+        - url: https://www.playback.ru
+        name: PlayBack.Ru
+        - url: https://volochek.life/
+        name: Volochek.Life
+        - url: https://radiomv.ru/
+        name: Radiomv.Ru
+        - url: https://ipfran.ru/
+        name: Ipfran.Ru
+        server:
+```
 
 Описание файла и параметров:
-server:
-  port: 8888
-Дефолтный порт 8080 может быть занят, поэтому в приложении я использую порт 8888.
 
-Для индексации сайтов, укажите url - сайта, name, id;
+
+Для индексации сайтов, нужно указать url сайта, name (название сайта);
 _______________________________________________________________
 В проекте используется база данных MySQL. 
-Чтобы запустить индексацию, потребуется создать схему с именем : search_engine.
-В файле конфигурации прописана ссылка и порт для подключению к базе данных.
+Чтобы запустить индексацию, потребуется создать схему с именем : ***search_engine*** в базе данных.
+В файле конфигурации прописана ссылка и порт для подключения к базе данных.
 Необходимо указать Ваши данные для авторизации. 
 
 Ссылка для подключения к БД выглядит следующим образом:
-![Connect to DB](https://github.com/alexves-b/searchengine/assets/135314843/c9cd6086-fc1d-4644-9698-de8976e4a376)
+```java
+spring:
+datasource:
+username: root
+password: *********
+url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
+jpa:
+properties:
+hibernate:
+dialect: org.hibernate.dialect.MySQL8Dialect
+hibernate:
+ddl-auto: create
+show-sql: true
+```
 ___________________________
 
 
