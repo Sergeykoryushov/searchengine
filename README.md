@@ -59,7 +59,7 @@ ___________________________
 2. Индексация сайтов - вкладка "MANAGEMENT".
 3. Поиск по сайтам - вкладка "SEARCH".
 
-![screenshot localhost](https://github.com/Sergeykoryushov/searchengine/images/blob/main/image1.jpg)
+![screenshot localhost](https://github.com/Sergeykoryushov/searchengine/blob/main/images/image1.jpg)
 
 <h3 align="center">1. Отображение статистики.</h3>
 Сервис отвечает за отображение корректной статистики при работе сервиса.
@@ -72,7 +72,7 @@ _______________________________________________
 <h3 align="center">2. Индексация сайтов.</h3>
 На вкладке "MANAGEMENT" нажмите на кнопку синего цвета STARTINDEXING.
 
-![screenshot Management](https://github.com/Sergeykoryushov/searchengine/images/blob/main/image.png)
+![screenshot Management](https://github.com/Sergeykoryushov/searchengine/blob/main/images/image.png)
 
 В случае, если страницы были уже проиндексированы раннее, произойдет отчистка страниц, которая может занять продолжительное время.
 Потребуется удалить множество индексов.
@@ -89,7 +89,7 @@ _______________________________________________
 
 
 Скрин из Википедии, что такое лемматизация, и леммы: 
-![lemma](https://github.com/Sergeykoryushov/searchengine/images/blob/main/image2.jpg)
+![lemma](https://github.com/Sergeykoryushov/searchengine/blob/main/images/image2.jpg)
 
 В сервисе индексации добавлена возможность обновления/добавления страницы при указании её url, начиная с https://...
 
@@ -108,7 +108,7 @@ _________________________________________________
 Вы можете указать одно, два или несколько слов.
 Поиск не учитывает предолги, местоимения, междометия и частицы. 
 Пример поискового запроса на скрине ниже:
-![search](https://github.com/Sergeykoryushov/searchengine/images/blob/main/image3.jpg)
+![search](https://github.com/Sergeykoryushov/searchengine/blob/main/images/image3.jpg)
 
 
 Спасибо за внимание!
