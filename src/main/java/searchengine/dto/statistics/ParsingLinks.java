@@ -31,7 +31,7 @@ public class ParsingLinks extends RecursiveAction {
     private final SiteForIndexing site;
     private final String url;
     private final int siteDepth;
-    private final static int MAX_DEPTH = 1;
+    private final static int MAX_DEPTH = 100;
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
     private final SitesList sites;
@@ -63,8 +63,16 @@ public class ParsingLinks extends RecursiveAction {
         String path = StartIndexingServiceImpl.addSlashToEnd(site.getUrl());
         return link.matches(regexForUrl)
                 && (link.startsWith(path) || link.startsWith(setUrlWithoutDomain(path)))
+                && !link.contains("?")
+                && !link.contains("&")
                 && !link.contains("#")
-                && !link.contains(".pdf");
+                && !link.contains(".pdf")
+                && !link.contains(".eps")
+                && !link.contains(".jpg")
+                && !link.contains(".jpeg")
+                && !link.contains(".doc")
+                && !link.contains(".xls")
+                && !link.contains(" .xlsx");
     }
 
 
@@ -98,9 +106,9 @@ public class ParsingLinks extends RecursiveAction {
         siteRepository.save(siteForIndexing);
     }
 
-    public synchronized boolean savePageInRepository(String path, OnePathInfo info) {
+    public boolean savePageInRepository(String path, OnePathInfo info) {
         String urlWithoutMainPath = urlWithoutMainPath(path);
-        if (checkContainsPathInRepository(urlWithoutMainPath, info.getSiteForIndexing())) {
+        if(checkContainsPathInRepository(urlWithoutMainPath,site)){
             return false;
         }
         String html = info.getHtml();
@@ -176,12 +184,14 @@ public class ParsingLinks extends RecursiveAction {
         }
         int statusCode = info.getStatusCode();
         SiteForIndexing siteForIndexing = info.getSiteForIndexing();
-        if (savePageInRepository(path, info) && statusCode == HttpStatus.OK.value()) {
+        if (savePageInRepository(path,info) && statusCode == HttpStatus.OK.value()) {
             info.getSearchLemmas().saveLemma(urlWithoutMainPath(path), siteForIndexing);
             if (siteForIndexing.getSiteStatus() != SiteStatus.FAILED) {
                 siteForIndexing.setStatusTime(LocalDateTime.now());
             }
             siteRepository.save(siteForIndexing);
+        } else {
+            return;
         }
         if (interrupted) {
             return;

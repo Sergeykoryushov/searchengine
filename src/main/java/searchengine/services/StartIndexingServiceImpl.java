@@ -101,7 +101,7 @@ public class StartIndexingServiceImpl implements StartIndexingService{
         }
         waitAllThreads();
         long finish = System.currentTimeMillis();
-        System.out.println("Программа выполнялась: " + (finish - start) / 1000 + " сек.");
+        System.out.println("Программа выполнялась: " + (finish - start) / 1000/60 + " мин.");
     }
 
     public void addSiteInSiteListForStartIndexing(Site site) {

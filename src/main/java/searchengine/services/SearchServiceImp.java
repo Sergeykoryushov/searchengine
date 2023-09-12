@@ -93,7 +93,7 @@ public class SearchServiceImp implements SearchService{
 
 
 
-    public HashMap<Page, Float> getSortedRelativeRelevanceMap( List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList){
+    public HashMap<Page, Float> getSortedRelativeRelevanceMap(List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList){
         HashMap<Page,Float> pagesRelativeRelevanceMap = new HashMap<>();
         HashMap<Page,Float> pagesAbsolutRelevanceMap = getAbsolutRelevanceMap( resultQueryFromPagesIdList,lemmaList);
         Float maxAbsolutRelevance = Collections.max(pagesAbsolutRelevanceMap.values());
@@ -112,7 +112,7 @@ public class SearchServiceImp implements SearchService{
 
 
 
-    public  HashMap<Page, Float> getAbsolutRelevanceMap( List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList){
+    public  HashMap<Page, Float> getAbsolutRelevanceMap(List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList){
         HashMap<Page,Float> pagesAbsolutRelevanceMap = new HashMap<>();
         for (Integer pageId: resultQueryFromPagesIdList){
             float absolutRelevance = 0;

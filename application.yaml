@@ -19,19 +19,21 @@ indexing-settings:
 #      name: Лента.ру
 #    - url: https://www.skillbox.ru/
 #      name: Skillbox
-    - url: https://www.playback.ru
-      name: PlayBack.Ru
+#    - url: https://www.playback.ru
+#      name: PlayBack.Ru
 #    - url: https://volochek.life/
 #      name: Volochek.Life
     - url: https://radiomv.ru/
       name: Radiomv.Ru
-#    - url: https://ipfran.ru/
-#      name: Ipfran.Ru
-#      https://dimonvideo.ru/
-#      https://nikoartgallery.com/
-#      https://et-cetera.ru/mobile/
-#      https://www.lutherancathedral.ru/
-#      https://dombulgakova.ru/
-#      https://www.svetlovka.ru/
+#    - url: https://www.svetlovka.ru/
+#      name: Svetlovka.Ru
+    - url: https://dombulgakova.ru/
+      name: Dombulgakova.Ru
+    - url: https://et-cetera.ru/mobile/
+      name: Et-cetera.Ru
+    - url: https://nikoartgallery.com/
+      name: Nikoartgallery.Com
+    - url: https://www.lutherancathedral.ru/
+      name: Lutherancathedral.Ru
       server:
         port: 8080

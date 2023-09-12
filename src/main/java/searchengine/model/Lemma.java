@@ -5,7 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -21,7 +20,7 @@ public class Lemma {
     @JoinColumn(name = "site_id",referencedColumnName = "id")
     private SiteForIndexing site;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "Index(lemma(512))")
     private String lemma;
 
     @Column(nullable = false)
