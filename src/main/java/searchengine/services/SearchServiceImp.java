@@ -121,9 +121,10 @@ public class SearchServiceImp implements SearchService{
                 Page page = optionalPage.get();
                 for (Lemma lemma : lemmaList){
                     SearchIndex searchIndex =  searchIndexRepository.findByLemmaIdAndPageId(lemma.getId(), pageId);
-                    if(searchIndex!=null) {
-                        absolutRelevance += searchIndex.getRank();
+                    if(searchIndex == null) {
+                        continue;
                     }
+                    absolutRelevance += searchIndex.getRank();
                 }
                 pagesAbsolutRelevanceMap.put(page,absolutRelevance);
             }

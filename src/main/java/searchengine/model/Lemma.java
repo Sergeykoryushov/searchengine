@@ -11,6 +11,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(indexes = {@Index(name = "idx_lemma_site_id", columnList = "lemma, site_id")})
 public class Lemma {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -20,7 +21,7 @@ public class Lemma {
     @JoinColumn(name = "site_id",referencedColumnName = "id")
     private SiteForIndexing site;
 
-    @Column(nullable = false, columnDefinition = "Index(lemma(512))")
+    @Column(nullable = false)
     private String lemma;
 
     @Column(nullable = false)
