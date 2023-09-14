@@ -1,15 +1,20 @@
 package searchengine.dto.statistics;
 
-import lombok.*;
+import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
-import searchengine.model.*;
+import searchengine.model.Page;
+import searchengine.model.SiteForIndexing;
+import searchengine.model.SiteStatus;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
@@ -91,10 +96,10 @@ public class ParsingLinks extends RecursiveAction {
         return targetUrl;
     }
 
-    public synchronized boolean checkContainsPathInRepository(String path, SiteForIndexing siteForIndexing) {
-        Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
-        return page != null;
-    }
+//    public synchronized boolean checkContainsPathInRepository(String path, SiteForIndexing siteForIndexing) {
+//        Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
+//        return page != null;
+//    }
 
 
     public void saveSiteInStatusFailed(Exception e, Site site) {
@@ -108,13 +113,10 @@ public class ParsingLinks extends RecursiveAction {
 
     public boolean savePageInRepository(String path, OnePathInfo info) {
         String urlWithoutMainPath = urlWithoutMainPath(path);
-        if(checkContainsPathInRepository(urlWithoutMainPath,site)){
-            return false;
-        }
         String html = info.getHtml();
         if (html == null) {
             html = "";
-        }
+        }try {
         Page page = new Page();
         page.setPath(urlWithoutMainPath);
         page.setCode(info.getStatusCode());
@@ -122,6 +124,9 @@ public class ParsingLinks extends RecursiveAction {
         page.setContent(html);
         pageRepository.save(page);
         return true;
+        } catch (DataIntegrityViolationException ex) {
+            return false;
+        }
     }
 
     public void interruptTask() {
@@ -169,11 +174,9 @@ public class ParsingLinks extends RecursiveAction {
         if (e instanceof org.jsoup.HttpStatusException) {
             statusCode = ((org.jsoup.HttpStatusException) e).getStatusCode();
         }
-        if (!checkContainsPathInRepository(url, siteForIndexing)) {
             String html = null;
             OnePathInfo info = new OnePathInfo(siteForIndexing, statusCode, html);
             savePageInRepository(url, info);
-        }
     }
 
 

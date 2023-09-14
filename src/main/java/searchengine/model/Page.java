@@ -11,6 +11,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "page", indexes = @javax.persistence.Index(name = "path_siteId_index", columnList = "path, site_id", unique = true))
 public class Page {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,8 +21,8 @@ public class Page {
     @JoinColumn(name = "site_id",referencedColumnName = "id")
     private SiteForIndexing site;
 
-    @Column(columnDefinition = "TEXT NOT NULL, Index(path(512))")
-    private String path;
+    @Column(nullable = false, length = 512)
+    String path;
 
     @Column(nullable = false)
     private int code;

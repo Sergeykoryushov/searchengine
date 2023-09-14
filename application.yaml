@@ -27,13 +27,13 @@ indexing-settings:
       name: Radiomv.Ru
     - url: https://www.svetlovka.ru/
       name: Svetlovka.Ru
-    - url: https://dombulgakova.ru/
-      name: Dombulgakova.Ru
+#    - url: https://dombulgakova.ru/
+#      name: Dombulgakova.Ru
 #    - url: https://et-cetera.ru/mobile/
 #      name: Et-cetera.Ru
-    - url: https://nikoartgallery.com/
-      name: Nikoartgallery.Com
-    - url: https://www.lutherancathedral.ru/
-      name: Lutherancathedral.Ru
+#    - url: https://nikoartgallery.com/
+#      name: Nikoartgallery.Com
+#    - url: https://www.lutherancathedral.ru/
+#      name: Lutherancathedral.Ru
       server:
         port: 8080
