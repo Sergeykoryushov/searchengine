@@ -78,7 +78,7 @@ public class SearchLemmas {
         Document doc = Jsoup.parse(html);
         return doc.text();
     }
-    public synchronized void saveLemma(String path, SiteForIndexing siteForIndexing) {
+    public void saveLemma(String path, SiteForIndexing siteForIndexing) {
         Page updatePage = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
         String updatePageHtml = updatePage.getContent();
         HashMap<String, Integer> lemmasCountMap = gettingLemmasAndCountInText(updatePageHtml);

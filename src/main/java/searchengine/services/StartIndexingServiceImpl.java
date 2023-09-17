@@ -16,6 +16,7 @@ import searchengine.repository.SiteRepository;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -74,8 +75,9 @@ public class StartIndexingServiceImpl implements StartIndexingService{
         long start = System.currentTimeMillis();
         tasks = new ArrayList<>();
         for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
+            Set<String> pathSet = new CopyOnWriteArraySet<>();
             ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0,
-                    pageRepository, siteRepository, sites, lemmaRepository, searchIndexRepository);
+                    pageRepository, siteRepository, sites, lemmaRepository, searchIndexRepository, pathSet);
             tasks.add(task);
         }
         for (ParsingLinks task: tasks) {

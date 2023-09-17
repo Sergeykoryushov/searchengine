@@ -16,6 +16,8 @@ import searchengine.repository.SiteRepository;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +34,9 @@ public class IndexPageServiceImpl implements IndexPageService {
         IndexingResponse indexingResponse = new IndexingResponse();
         String baseUrl = extractBaseUrl(url);
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(baseUrl);
+        Set<String> pathSet = new CopyOnWriteArraySet<>();
         ParsingLinks parsingLinks = new ParsingLinks(siteForIndexing, url, 0, pageRepository,
-                siteRepository, sites, lemmaRepository, searchIndexRepository);
+                siteRepository, sites, lemmaRepository, searchIndexRepository, pathSet);
         if (siteForIndexing == null) {
             indexingResponse.setResult(false);
             indexingResponse.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");

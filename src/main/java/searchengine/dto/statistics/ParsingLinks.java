@@ -28,6 +28,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.RecursiveAction;
 
 @Data
@@ -42,6 +44,7 @@ public class ParsingLinks extends RecursiveAction {
     private final SitesList sites;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
+    private final Set<String> pathSet;
     private volatile boolean interrupted = false;
     private boolean isCompleted = false;
     @Getter
@@ -77,7 +80,8 @@ public class ParsingLinks extends RecursiveAction {
                 && !link.contains(".jpeg")
                 && !link.contains(".doc")
                 && !link.contains(".xls")
-                && !link.contains(" .xlsx");
+                && !link.contains(" .xlsx")
+                && !pathSet.contains(link);
     }
 
 
@@ -95,11 +99,6 @@ public class ParsingLinks extends RecursiveAction {
         }
         return targetUrl;
     }
-
-//    public synchronized boolean checkContainsPathInRepository(String path, SiteForIndexing siteForIndexing) {
-//        Page page = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
-//        return page != null;
-//    }
 
 
     public void saveSiteInStatusFailed(Exception e, Site site) {
@@ -123,6 +122,7 @@ public class ParsingLinks extends RecursiveAction {
         page.setSite(info.getSiteForIndexing());
         page.setContent(html);
         pageRepository.save(page);
+        pathSet.add(path);
         return true;
         } catch (DataIntegrityViolationException ex) {
             return false;
@@ -203,7 +203,7 @@ public class ParsingLinks extends RecursiveAction {
             return;
         }
         ParsingLinks task = new ParsingLinks(site, path, siteDepth + 1, pageRepository,
-                siteRepository, sites, lemmaRepository, searchIndexRepository);
+                siteRepository, sites, lemmaRepository, searchIndexRepository, pathSet);
         task.fork();
         task.join();
     }
