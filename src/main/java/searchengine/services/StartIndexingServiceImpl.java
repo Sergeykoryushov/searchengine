@@ -79,10 +79,8 @@ public class StartIndexingServiceImpl implements StartIndexingService{
         }
         ForkJoinPool commonPool = new ForkJoinPool();
 
-        List<Future<Void>> futures = new ArrayList<>();
-
         for (ParsingLinks task : tasks) {
-            Future<Void> future = commonPool.submit(() -> {
+            commonPool.submit(() -> {
                 try {
                     task.invoke();
                     if (stopAllIndexing) {
@@ -94,18 +92,20 @@ public class StartIndexingServiceImpl implements StartIndexingService{
                     }
                     siteFromRepository.setSiteStatus(SiteStatus.INDEXED);
                     siteRepository.save(siteFromRepository);
+                    task.join();
                     return null;
                 } catch (Exception exception) {
                     exception.printStackTrace();
                     throw exception;
-                } finally {
-                    task.join();
                 }
             });
-            futures.add(future);
         }
-
         commonPool.shutdown();
+        try {
+            commonPool.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000/60 + " мин.");
