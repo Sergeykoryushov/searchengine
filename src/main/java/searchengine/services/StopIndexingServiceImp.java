@@ -30,7 +30,6 @@ public class StopIndexingServiceImp implements StopIndexingService{
             parsingTask.interruptTask();
         }
         ParsingLinks.getParsingTasks().clear();
-        startIndexingServiceImpl.waitAllThreads();
         List<SiteForIndexing> sitesIndexingNowList = siteRepository.findAll();
         for (SiteForIndexing site : sitesIndexingNowList) {
             site.setSiteStatus(SiteStatus.FAILED);

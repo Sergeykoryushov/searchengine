@@ -1,4 +1,4 @@
-package searchengine.dto.statistics;
+package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
@@ -14,20 +14,21 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 
+import javax.transaction.Transactional;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 @Service
 @RequiredArgsConstructor
-public class SearchLemmas {
+public class SearchLemmasImp implements SearchLemmas{
     private PageRepository pageRepository;
     private LemmaRepository lemmaRepository;
     private SearchIndexRepository searchIndexRepository;
     public static final String regexForSplitText = "[^А-Яа-яёЁ]+";
     private static final String[] partsOfSpeechNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
-    public SearchLemmas(PageRepository pageRepository, LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository) {
+    public SearchLemmasImp(PageRepository pageRepository, LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository) {
         this.pageRepository = pageRepository;
         this.lemmaRepository = lemmaRepository;
         this.searchIndexRepository = searchIndexRepository;
@@ -78,6 +79,7 @@ public class SearchLemmas {
         Document doc = Jsoup.parse(html);
         return doc.text();
     }
+    @Transactional
     public void saveLemma(String path, SiteForIndexing siteForIndexing) {
         Page updatePage = pageRepository.findByPathAndSiteId(path, siteForIndexing.getId());
         String updatePageHtml = updatePage.getContent();

@@ -19,6 +19,7 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
+import searchengine.services.SearchLemmasImp;
 import searchengine.services.StartIndexingServiceImpl;
 
 import java.io.IOException;
@@ -29,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.RecursiveAction;
 
 @Data
@@ -58,7 +58,7 @@ public class ParsingLinks extends RecursiveAction {
             return;
         }
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
-        SearchLemmas searchLemmas = new SearchLemmas(pageRepository, lemmaRepository, searchIndexRepository);
+        SearchLemmasImp searchLemmas = new SearchLemmasImp(pageRepository, lemmaRepository, searchIndexRepository);
         try {
             boolean updatePath = false;
             connectingAndIndexingSite(siteForIndexing, searchLemmas, updatePath);
@@ -143,7 +143,7 @@ public class ParsingLinks extends RecursiveAction {
         }
     }
 
-    public void connectingAndIndexingSite(SiteForIndexing siteForIndexing, SearchLemmas searchLemmas, boolean updatePath) throws IOException, InterruptedException {
+    public void connectingAndIndexingSite(SiteForIndexing siteForIndexing, SearchLemmasImp searchLemmas, boolean updatePath) throws IOException, InterruptedException {
         Thread.sleep(150);
         if (interrupted) {
             return;

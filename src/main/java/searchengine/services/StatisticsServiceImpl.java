@@ -10,6 +10,7 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
 
+import javax.transaction.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final SitesList sites;
 
     @Override
+    @Transactional
     public StatisticsResponse getStatistics() {
         String[] statuses = { "INDEXED", "FAILED", "INDEXING" };
         String[] errors = {

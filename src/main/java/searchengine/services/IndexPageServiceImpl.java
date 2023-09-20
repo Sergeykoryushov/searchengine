@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.IndexingResponse;
 import searchengine.dto.statistics.ParsingLinks;
-import searchengine.dto.statistics.SearchLemmas;
 import searchengine.model.Page;
 import searchengine.model.SiteForIndexing;
 import searchengine.repository.LemmaRepository;
@@ -13,10 +12,12 @@ import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
 
+import javax.transaction.Transactional;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 @Service
@@ -30,6 +31,7 @@ public class IndexPageServiceImpl implements IndexPageService {
 
 
     @Override
+    @Transactional
     public IndexingResponse indexPageByUrl(String url) {
         IndexingResponse indexingResponse = new IndexingResponse();
         String baseUrl = extractBaseUrl(url);
@@ -48,7 +50,7 @@ public class IndexPageServiceImpl implements IndexPageService {
             pageRepository.delete(page);
         }
         if (parsingLinks.checkLink(url)) {
-            SearchLemmas searchLemmas = new SearchLemmas(pageRepository, lemmaRepository, searchIndexRepository);
+            SearchLemmasImp searchLemmas = new SearchLemmasImp(pageRepository, lemmaRepository, searchIndexRepository);
             try {
                 boolean updatePath = true;
                 parsingLinks.connectingAndIndexingSite(siteForIndexing,searchLemmas, updatePath);

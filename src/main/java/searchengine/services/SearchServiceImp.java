@@ -6,7 +6,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 import searchengine.dto.statistics.SearchData;
-import searchengine.dto.statistics.SearchLemmas;
 import searchengine.dto.statistics.SearchResponse;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
@@ -16,6 +15,8 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
+
+import javax.transaction.Transactional;
 import java.util.*;
 
 @Service
@@ -28,8 +29,9 @@ public class SearchServiceImp implements SearchService{
 
 
     @Override
+    @Transactional
     public SearchResponse search(String query, int offset, int limit, String site) {
-        SearchLemmas searchLemmas = new SearchLemmas(pageRepository, lemmaRepository, searchIndexRepository);
+        SearchLemmasImp searchLemmas = new SearchLemmasImp(pageRepository, lemmaRepository, searchIndexRepository);
         SearchResponse response = new SearchResponse();
         HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasAndCountInText(query);
         Set<String> queryLemmaSet = lemmasCountMap.keySet();
@@ -171,9 +173,9 @@ public class SearchServiceImp implements SearchService{
     }
 
     public String getRussianText(String text){
-        SearchLemmas search = new SearchLemmas();
+        SearchLemmasImp search = new SearchLemmasImp();
         text = search.removeHtmlTags(text);
-        String[] russianWords = text.split(SearchLemmas.regexForSplitText);
+        String[] russianWords = text.split(SearchLemmasImp.regexForSplitText);
         return String.join(" ", russianWords);
     }
     public List<Integer> getAllSitesIdFromConfig(String site){
