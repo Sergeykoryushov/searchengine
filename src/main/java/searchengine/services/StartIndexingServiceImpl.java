@@ -32,19 +32,20 @@ public class StartIndexingServiceImpl implements StartIndexingService{
     @Getter
     private static CopyOnWriteArrayList<ForkJoinPool> threadList = new CopyOnWriteArrayList<>();
     @Getter
+    private static ForkJoinPool commonPool;
+    @Getter
     private boolean stopAllIndexing = false;
 
     @Override
     public IndexingResponse startIndex() {
         IndexingResponse indexingResponse = new IndexingResponse();
-        if (!threadList.isEmpty()){
+        if (commonPool != null){
             indexingResponse.setResult(false);
             indexingResponse.setError("Индексация уже запущена");
             return indexingResponse;
         }
         deleteAllSitesInRepository();
         sitesForStartIndexingList.clear();
-        threadList.clear();
         addSiteForIndexing();
         Runnable runnable = this::startIndexingAllSites;
         Thread thread = new Thread(runnable);
@@ -77,7 +78,7 @@ public class StartIndexingServiceImpl implements StartIndexingService{
                     pageRepository, siteRepository, sites, lemmaRepository, searchIndexRepository, pathSet);
             tasks.add(task);
         }
-        ForkJoinPool commonPool = new ForkJoinPool();
+        commonPool = new ForkJoinPool();
 
         for (ParsingLinks task : tasks) {
             commonPool.submit(() -> {
@@ -106,7 +107,6 @@ public class StartIndexingServiceImpl implements StartIndexingService{
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000/60 + " мин.");
     }
