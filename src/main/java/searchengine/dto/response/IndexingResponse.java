@@ -1,4 +1,4 @@
-package searchengine.dto.statistics;
+package searchengine.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Data;

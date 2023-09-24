@@ -1,4 +1,4 @@
-package searchengine.services;
+package searchengine.services.searchImp;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
@@ -13,6 +13,7 @@ import searchengine.model.SiteForIndexing;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
+import searchengine.services.search.LemmaSearcher;
 
 import javax.transaction.Transactional;
 import java.io.IOException;
@@ -21,14 +22,14 @@ import java.util.List;
 import java.util.Set;
 @Service
 @RequiredArgsConstructor
-public class SearchLemmasImp implements SearchLemmas{
+public class LemmaSearcherImp implements LemmaSearcher {
     private PageRepository pageRepository;
     private LemmaRepository lemmaRepository;
     private SearchIndexRepository searchIndexRepository;
     public static final String regexForSplitText = "[^А-Яа-яёЁ]+";
     private static final String[] partsOfSpeechNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
-    public SearchLemmasImp(PageRepository pageRepository, LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository) {
+    public LemmaSearcherImp(PageRepository pageRepository, LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository) {
         this.pageRepository = pageRepository;
         this.lemmaRepository = lemmaRepository;
         this.searchIndexRepository = searchIndexRepository;

@@ -1,4 +1,4 @@
-package searchengine.dto.statistics;
+package searchengine.services.indexing;
 
 import lombok.Data;
 import lombok.Getter;
@@ -10,8 +10,9 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import searchengine.config.Site;
-import searchengine.config.SitesList;
+import searchengine.config.SiteProperty;
+import searchengine.config.SitesListProperties;
+import searchengine.dto.OnePathInfo;
 import searchengine.model.Page;
 import searchengine.model.SiteForIndexing;
 import searchengine.model.SiteStatus;
@@ -19,8 +20,8 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
-import searchengine.services.SearchLemmasImp;
-import searchengine.services.StartIndexingServiceImpl;
+import searchengine.services.searchImp.LemmaSearcherImp;
+import searchengine.services.indexingImp.StartIndexingServiceImpl;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -31,24 +32,24 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.RecursiveAction;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Data
 @RequiredArgsConstructor
-public class ParsingLinks extends RecursiveAction {
-    private final SiteForIndexing site;
+public class RecursiveLinkParser extends RecursiveAction {
+    private final SiteForIndexing siteForIndexing;
     private final String url;
     private final int siteDepth;
     private final static int MAX_DEPTH = 100;
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
-    private final SitesList sites;
+    private final SitesListProperties sites;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
     private final Set<String> pathSet;
-    private volatile boolean interrupted = false;
-    private boolean isCompleted = false;
+    private AtomicBoolean interrupted = new AtomicBoolean(false);
     @Getter
-    private static List<ParsingLinks> parsingTasks = new ArrayList<>();
+    private static List<RecursiveLinkParser> parsingTasks = new ArrayList<>();
     private static String regexForUrl = "(?:https?://)?(?:www\\.)?([a-zA-Z0-9-]+\\.[a-zA-Z]+)(?:/[^\\s]*)?";
 
     @Override
@@ -57,8 +58,7 @@ public class ParsingLinks extends RecursiveAction {
         if (siteDepth > MAX_DEPTH) {
             return;
         }
-        SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
-        SearchLemmasImp searchLemmas = new SearchLemmasImp(pageRepository, lemmaRepository, searchIndexRepository);
+        LemmaSearcherImp searchLemmas = new LemmaSearcherImp(pageRepository, lemmaRepository, searchIndexRepository);
         try {
             boolean updatePath = false;
             connectingAndIndexingSite(siteForIndexing, searchLemmas, updatePath);
@@ -68,7 +68,7 @@ public class ParsingLinks extends RecursiveAction {
     }
 
     public boolean checkLink(String link) {
-        String path = StartIndexingServiceImpl.addSlashToEnd(site.getUrl());
+        String path = StartIndexingServiceImpl.addSlashToEnd(siteForIndexing.getUrl());
         return link.matches(regexForUrl)
                 && (link.startsWith(path) || link.startsWith(setUrlWithoutDomain(path)))
                 && !link.contains("?")
@@ -101,7 +101,7 @@ public class ParsingLinks extends RecursiveAction {
     }
 
 
-    public void saveSiteInStatusFailed(Exception e, Site site) {
+    public void saveSiteInStatusFailed(Exception e, SiteProperty site) {
         SiteForIndexing siteForIndexing = siteRepository.findByUrl(site.getUrl());
         siteForIndexing.setName(site.getName());
         siteForIndexing.setUrl(site.getUrl());
@@ -130,7 +130,7 @@ public class ParsingLinks extends RecursiveAction {
     }
 
     public void interruptTask() {
-        interrupted = true;
+        interrupted.set(true);
     }
 
     public String urlWithoutMainPath(String path) {
@@ -143,9 +143,9 @@ public class ParsingLinks extends RecursiveAction {
         }
     }
 
-    public void connectingAndIndexingSite(SiteForIndexing siteForIndexing, SearchLemmasImp searchLemmas, boolean updatePath) throws IOException, InterruptedException {
+    public void connectingAndIndexingSite(SiteForIndexing siteForIndexing, LemmaSearcherImp searchLemmas, boolean updatePath) throws IOException, InterruptedException {
         Thread.sleep(150);
-        if (interrupted) {
+        if (interrupted.get()) {
             return;
         }
         Connection.Response response = Jsoup.connect(url).execute();
@@ -154,19 +154,19 @@ public class ParsingLinks extends RecursiveAction {
         int statusCode = response.statusCode();
         Elements elements = document.select("a[href]");
         for (Element element : elements) {
-            if (interrupted) {
+            if (interrupted.get()) {
                 return;
             }
             OnePathInfo info = new OnePathInfo(siteForIndexing, statusCode, searchLemmas, html);
-            indexingOnePath(element, info, updatePath);
+            indexingOnePath(element, info, updatePath, url);
         }
     }
 
     public void exceptionHandling(Exception e, SiteForIndexing siteForIndexing) {
-        List<Site> siteList = sites.getSites();
-        Optional<Site> foundSite = siteList.stream().filter(site -> site.getUrl().equals(url)).findFirst();
+        List<SiteProperty> siteList = sites.getSites();
+        Optional<SiteProperty> foundSite = siteList.stream().filter(site -> site.getUrl().equals(url)).findFirst();
         if (foundSite.isPresent()) {
-            Site site = foundSite.get();
+            SiteProperty site = foundSite.get();
             saveSiteInStatusFailed(e, site);
             return;
         }
@@ -180,8 +180,8 @@ public class ParsingLinks extends RecursiveAction {
     }
 
 
-    public void indexingOnePath(Element element, OnePathInfo info, boolean updatePath) {
-        String path = element.absUrl("href");
+    public void indexingOnePath(Element element, OnePathInfo info, boolean updatePath, String url) {
+           String path = element.absUrl("href");
         if (!checkLink(path)) {
             return;
         }
@@ -196,13 +196,13 @@ public class ParsingLinks extends RecursiveAction {
         } else {
             return;
         }
-        if (interrupted) {
+        if (interrupted.get()) {
             return;
         }
         if (updatePath) {
             return;
         }
-        ParsingLinks task = new ParsingLinks(site, path, siteDepth + 1, pageRepository,
+        RecursiveLinkParser task = new RecursiveLinkParser(this.siteForIndexing, path, siteDepth + 1, pageRepository,
                 siteRepository, sites, lemmaRepository, searchIndexRepository, pathSet);
         task.fork();
         task.join();

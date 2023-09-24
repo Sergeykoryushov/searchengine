@@ -1,18 +1,18 @@
-package searchengine.dto.statistics;
+package searchengine.dto;
 
 import lombok.Data;
 import searchengine.model.SiteForIndexing;
-import searchengine.services.SearchLemmasImp;
+import searchengine.services.searchImp.LemmaSearcherImp;
 
 @Data
 public class OnePathInfo {
     private final SiteForIndexing siteForIndexing;
     private final int statusCode;
-    private final SearchLemmasImp searchLemmas;
+    private final LemmaSearcherImp searchLemmas;
     private final String html;
 
 
-    public OnePathInfo(SiteForIndexing siteForIndexing, int statusCode, SearchLemmasImp searchLemmas, String html) {
+    public OnePathInfo(SiteForIndexing siteForIndexing, int statusCode, LemmaSearcherImp searchLemmas, String html) {
         this.siteForIndexing = siteForIndexing;
         this.statusCode = statusCode;
         this.searchLemmas = searchLemmas;

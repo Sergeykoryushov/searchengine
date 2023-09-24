@@ -1,40 +1,42 @@
-package searchengine.services;
+package searchengine.services.indexingImp;
 
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import searchengine.config.Site;
-import searchengine.config.SitesList;
-import searchengine.dto.statistics.ParsingLinks;
-import searchengine.dto.statistics.IndexingResponse;
+import searchengine.config.SiteProperty;
+import searchengine.config.SitesListProperties;
+import searchengine.dto.response.IndexingResponse;
 import searchengine.model.*;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
+import searchengine.services.indexing.RecursiveLinkParser;
+import searchengine.services.indexing.StartIndexingService;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
 @Data
-public class StartIndexingServiceImpl implements StartIndexingService{
+public class StartIndexingServiceImpl implements StartIndexingService {
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
-    private final SitesList sites;
+    private final SitesListProperties sites;
     private final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
     @Getter
-    private static List<ParsingLinks> tasks;
+    private static List<RecursiveLinkParser> tasks;
     @Getter
     private static CopyOnWriteArrayList<ForkJoinPool> threadList = new CopyOnWriteArrayList<>();
     @Getter
     private static ForkJoinPool commonPool;
     @Getter
-    private boolean stopAllIndexing = false;
+    private AtomicBoolean stopAllIndexing = new AtomicBoolean(false);
 
     @Override
     public IndexingResponse startIndex() {
@@ -56,8 +58,8 @@ public class StartIndexingServiceImpl implements StartIndexingService{
 
 
     public void addSiteForIndexing() {
-        List<Site> siteList = sites.getSites();
-        for (Site site : siteList) {
+        List<SiteProperty> siteList = sites.getSites();
+        for (SiteProperty site : siteList) {
             addSiteInSiteListForStartIndexing(site);
         }
         siteRepository.saveAll(sitesForStartIndexingList);
@@ -74,20 +76,20 @@ public class StartIndexingServiceImpl implements StartIndexingService{
         tasks = new ArrayList<>();
         for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
             Set<String> pathSet = new CopyOnWriteArraySet<>();
-            ParsingLinks task = new ParsingLinks(siteForIndexing, siteForIndexing.getUrl(), 0,
+            RecursiveLinkParser task = new RecursiveLinkParser(siteForIndexing, siteForIndexing.getUrl(), 0,
                     pageRepository, siteRepository, sites, lemmaRepository, searchIndexRepository, pathSet);
             tasks.add(task);
         }
         commonPool = new ForkJoinPool();
 
-        for (ParsingLinks task : tasks) {
+        for (RecursiveLinkParser task : tasks) {
             commonPool.submit(() -> {
                 try {
                     task.invoke();
-                    if (stopAllIndexing) {
+                    if (stopAllIndexing.get()) {
                         return null;
                     }
-                    SiteForIndexing siteFromRepository = siteRepository.findByUrl(task.getSite().getUrl());
+                    SiteForIndexing siteFromRepository = siteRepository.findByUrl(task.getSiteForIndexing().getUrl());
                     if (!siteFromRepository.getSiteStatus().equals(SiteStatus.INDEXING)) {
                         return null;
                     }
@@ -105,13 +107,13 @@ public class StartIndexingServiceImpl implements StartIndexingService{
         try {
             commonPool.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
         long finish = System.currentTimeMillis();
         System.out.println("Программа выполнялась: " + (finish - start) / 1000/60 + " мин.");
     }
 
-    public void addSiteInSiteListForStartIndexing(Site site) {
+    public void addSiteInSiteListForStartIndexing(SiteProperty site) {
         SiteForIndexing newSiteForIndexing = new SiteForIndexing();
         newSiteForIndexing.setName(site.getName());
         newSiteForIndexing.setUrl(addSlashToEnd(site.getUrl()));

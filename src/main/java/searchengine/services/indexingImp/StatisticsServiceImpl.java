@@ -1,14 +1,16 @@
-package searchengine.services;
+package searchengine.services.indexingImp;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import searchengine.config.Site;
-import searchengine.config.SitesList;
-import searchengine.dto.statistics.*;
+import searchengine.config.SiteProperty;
+import searchengine.config.SitesListProperties;
+import searchengine.dto.*;
+import searchengine.dto.response.StatisticsResponse;
 import searchengine.model.SiteForIndexing;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
+import searchengine.services.indexing.StatisticsService;
 
 import javax.transaction.Transactional;
 import java.time.LocalDateTime;
@@ -21,35 +23,33 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final SiteRepository siteRepository;
-    private final SitesList sites;
+    private final SitesListProperties sites;
+    private static final String[] statuses = { "INDEXED", "FAILED", "INDEXING" };
+    private static final String[] errors = {
+            "Ошибка индексации: главная страница сайта не доступна",
+            "Ошибка индексации: сайт не доступен",
+            ""
+    };
 
     @Override
     @Transactional
     public StatisticsResponse getStatistics() {
-        String[] statuses = { "INDEXED", "FAILED", "INDEXING" };
-        String[] errors = {
-                "Ошибка индексации: главная страница сайта не доступна",
-                "Ошибка индексации: сайт не доступен",
-                ""
-        };
         TotalStatistics total = new TotalStatistics();
         total.setSites(sites.getSites().size());
         total.setIndexing(true);
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
-        List<Site> sitesList = sites.getSites();
+        List<SiteProperty> sitesList = sites.getSites();
         for(int i = 0; i < sitesList.size(); i++) {
-            Site site = sitesList.get(i);
-            OneSiteStatisticsInfo siteStatisticsInfo = new OneSiteStatisticsInfo(site, errors, statuses);
-           createDetailedStatisticsItem(siteStatisticsInfo, total, detailed);
+            SiteProperty site = sitesList.get(i);
+           createDetailedStatisticsItem(site, detailed, total);
         }
-        return createResponse(total, detailed);
+        return createResponse(detailed, total);
     }
 
 
-    public void setDataForNonIndexedSites(OneSiteStatisticsInfo info, TotalStatistics total, List<DetailedStatisticsItem> detailed){
-        DetailedStatisticsItem item = info.getItem();
+    public void setDataForNonIndexedSites(TotalStatistics total, List<DetailedStatisticsItem> detailed, DetailedStatisticsItem item){
         item.setStatus("NO INFORMATION ON INDEXING");
-        String lastError = info.getErrors()[2];
+        String lastError = errors[2];
         item.setError(lastError);
         item.setStatusTime(LocalDateTime.now());
         total.setPages(total.getPages());
@@ -57,11 +57,9 @@ public class StatisticsServiceImpl implements StatisticsService {
         detailed.add(item);
     }
 
-    public void setDataForIndexedSites(OneSiteStatisticsInfo siteStatisticsInfo, TotalStatistics total, List<DetailedStatisticsItem> detailed) {
-        SiteForIndexing siteFromRepository = siteRepository.findByUrl(StartIndexingServiceImpl.addSlashToEnd(siteStatisticsInfo.getSite().getUrl()));
-        DetailedStatisticsItem item = siteStatisticsInfo.getItem();
+    public void setDataForIndexedSites(SiteForIndexing siteFromRepository, TotalStatistics total, List<DetailedStatisticsItem> detailed, DetailedStatisticsItem item ) {
         String status = siteFromRepository.getSiteStatus().toString();
-        for (String statusSite : siteStatisticsInfo.getStatuses()) {
+        for (String statusSite : statuses) {
             if (statusSite.equals(status)) {
                 status = statusSite;
                 break;
@@ -70,7 +68,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         item.setStatus(status);
         String lastError = siteFromRepository.getLastError();
         if(lastError == null){
-            lastError = siteStatisticsInfo.getErrors()[2];
+            lastError = errors[2];
         }
         item.setError(lastError);
         item.setStatusTime(siteFromRepository.getStatusTime());
@@ -80,7 +78,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
 
-    public StatisticsResponse createResponse(TotalStatistics total, List<DetailedStatisticsItem> detailed){
+    public StatisticsResponse createResponse(List<DetailedStatisticsItem> detailed, TotalStatistics total){
         StatisticsResponse response = new StatisticsResponse();
         StatisticsData data = new StatisticsData();
         data.setTotal(total);
@@ -90,10 +88,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         return response;
     }
 
-    public void createDetailedStatisticsItem(OneSiteStatisticsInfo siteStatisticsInfo, TotalStatistics total, List<DetailedStatisticsItem> detailed) {
-        Site site = siteStatisticsInfo.getSite();
-        String [] errors = siteStatisticsInfo.getErrors();
-        String [] statuses = siteStatisticsInfo.getStatuses();
+    public void createDetailedStatisticsItem(SiteProperty site, List<DetailedStatisticsItem> detailed, TotalStatistics total) {
         SiteForIndexing siteFromRepository = siteRepository.findByUrl(StartIndexingServiceImpl.addSlashToEnd(site.getUrl()));
         DetailedStatisticsItem item = new DetailedStatisticsItem();
         item.setName(site.getName());
@@ -104,11 +99,10 @@ public class StatisticsServiceImpl implements StatisticsService {
             item.setPages(pages);
             item.setLemmas(lemmas);
         }
-        OneSiteStatisticsInfo siteStatisticsInfoWithDetailedStatisticsItem = new OneSiteStatisticsInfo(site, errors, statuses, item);
         if (siteFromRepository == null) {
-            setDataForNonIndexedSites(siteStatisticsInfoWithDetailedStatisticsItem, total, detailed);
+            setDataForNonIndexedSites(total, detailed, item);
             return;
         }
-        setDataForIndexedSites(siteStatisticsInfoWithDetailedStatisticsItem, total, detailed);
+        setDataForIndexedSites(siteFromRepository, total, detailed, item);
     }
 }

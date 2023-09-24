@@ -1,12 +1,12 @@
-package searchengine.services;
+package searchengine.services.searchImp;
 
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
-import searchengine.dto.statistics.SearchData;
-import searchengine.dto.statistics.SearchResponse;
+import searchengine.dto.SearchData;
+import searchengine.dto.response.SearchResponse;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.SearchIndex;
@@ -15,13 +15,15 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
+import searchengine.services.indexingImp.StartIndexingServiceImpl;
+import searchengine.services.search.SearchService;
 
 import javax.transaction.Transactional;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-public class SearchServiceImp implements SearchService{
+public class SearchServiceImp implements SearchService {
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
     private final LemmaRepository lemmaRepository;
@@ -31,7 +33,7 @@ public class SearchServiceImp implements SearchService{
     @Override
     @Transactional
     public SearchResponse search(String query, int offset, int limit, String site) {
-        SearchLemmasImp searchLemmas = new SearchLemmasImp(pageRepository, lemmaRepository, searchIndexRepository);
+        LemmaSearcherImp searchLemmas = new LemmaSearcherImp(pageRepository, lemmaRepository, searchIndexRepository);
         SearchResponse response = new SearchResponse();
         HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasAndCountInText(query);
         Set<String> queryLemmaSet = lemmasCountMap.keySet();
@@ -173,9 +175,9 @@ public class SearchServiceImp implements SearchService{
     }
 
     public String getRussianText(String text){
-        SearchLemmasImp search = new SearchLemmasImp();
+        LemmaSearcherImp search = new LemmaSearcherImp();
         text = search.removeHtmlTags(text);
-        String[] russianWords = text.split(SearchLemmasImp.regexForSplitText);
+        String[] russianWords = text.split(LemmaSearcherImp.regexForSplitText);
         return String.join(" ", russianWords);
     }
     public List<Integer> getAllSitesIdFromConfig(String site){

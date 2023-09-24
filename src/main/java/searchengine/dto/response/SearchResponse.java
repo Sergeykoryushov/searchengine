@@ -1,8 +1,9 @@
-package searchengine.dto.statistics;
+package searchengine.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Data;
+import searchengine.dto.SearchData;
 
 import java.util.List;
 @Data

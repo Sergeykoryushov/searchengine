@@ -1,4 +1,4 @@
-package searchengine.dto.statistics;
+package searchengine.dto;
 
 import lombok.Data;
 

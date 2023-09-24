@@ -1,4 +1,4 @@
-package searchengine.dto.statistics;
+package searchengine.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

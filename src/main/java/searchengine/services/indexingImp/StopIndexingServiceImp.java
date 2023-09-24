@@ -1,19 +1,21 @@
-package searchengine.services;
+package searchengine.services.indexingImp;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import searchengine.dto.statistics.IndexingResponse;
-import searchengine.dto.statistics.ParsingLinks;
+import searchengine.dto.response.IndexingResponse;
 import searchengine.model.SiteForIndexing;
 import searchengine.model.SiteStatus;
 import searchengine.repository.SiteRepository;
+import searchengine.services.indexing.RecursiveLinkParser;
+import searchengine.services.indexing.StopIndexingService;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
-public class StopIndexingServiceImp implements StopIndexingService{
+public class StopIndexingServiceImp implements StopIndexingService {
     private final StartIndexingServiceImpl startIndexingServiceImpl;
     private final SiteRepository siteRepository;
 
@@ -25,16 +27,15 @@ public class StopIndexingServiceImp implements StopIndexingService{
             indexingResponse.setError("Индексация не запущена");
             return indexingResponse;
         }
-        StartIndexingServiceImpl.getCommonPool().shutdownNow();
-//        startIndexingServiceImpl.setStopAllIndexing(true);
-//        List<ParsingLinks> parsingLinksList = ParsingLinks.getParsingTasks();
-//        for (ParsingLinks parsingTask : parsingLinksList) {
-//            parsingTask.interruptTask();
-//        }
+        startIndexingServiceImpl.setStopAllIndexing(new AtomicBoolean(true));
+        List<RecursiveLinkParser> recursiveLinkParserList = RecursiveLinkParser.getParsingTasks();
+        for (RecursiveLinkParser parsingTask : recursiveLinkParserList) {
+            parsingTask.interruptTask();
+        }
         try {
             StartIndexingServiceImpl.getCommonPool().awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
         List<SiteForIndexing> sitesIndexingNowList = siteRepository.findAll();
         for (SiteForIndexing site : sitesIndexingNowList) {

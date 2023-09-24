@@ -13,7 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Setter
 @Component
 @ConfigurationProperties(prefix = "indexing-settings")
-public class SitesList {
-    private List<Site> sites = new CopyOnWriteArrayList<>();
+public class SitesListProperties {
+    private List<SiteProperty> sites = new CopyOnWriteArrayList<>();
 
 }
