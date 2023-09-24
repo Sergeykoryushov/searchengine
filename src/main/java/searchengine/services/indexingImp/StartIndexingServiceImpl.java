@@ -30,7 +30,7 @@ public class StartIndexingServiceImpl implements StartIndexingService {
     private final SitesListProperties sites;
     private final List<SiteForIndexing> sitesForStartIndexingList = new ArrayList<>();
     @Getter
-    private static List<RecursiveLinkParser> tasks;
+    private static List<RecursiveLinkParser> tasks = new ArrayList<>();;
     @Getter
     private static CopyOnWriteArrayList<ForkJoinPool> threadList = new CopyOnWriteArrayList<>();
     @Getter
@@ -41,7 +41,7 @@ public class StartIndexingServiceImpl implements StartIndexingService {
     @Override
     public IndexingResponse startIndex() {
         IndexingResponse indexingResponse = new IndexingResponse();
-        if (commonPool != null){
+        if (!tasks.isEmpty()){
             indexingResponse.setResult(false);
             indexingResponse.setError("Индексация уже запущена");
             return indexingResponse;
@@ -73,7 +73,6 @@ public class StartIndexingServiceImpl implements StartIndexingService {
 
     public void startIndexingAllSites() {
         long start = System.currentTimeMillis();
-        tasks = new ArrayList<>();
         for (SiteForIndexing siteForIndexing : sitesForStartIndexingList) {
             Set<String> pathSet = new CopyOnWriteArraySet<>();
             RecursiveLinkParser task = new RecursiveLinkParser(siteForIndexing, siteForIndexing.getUrl(), 0,

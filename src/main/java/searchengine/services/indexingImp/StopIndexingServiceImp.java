@@ -46,6 +46,7 @@ public class StopIndexingServiceImp implements StopIndexingService {
             site.setLastError("Индексация остановлена пользователем");
             siteRepository.save(site);
         }
+        StartIndexingServiceImpl.getTasks().clear();
         indexingResponse.setResult(true);
         return indexingResponse;
     }
