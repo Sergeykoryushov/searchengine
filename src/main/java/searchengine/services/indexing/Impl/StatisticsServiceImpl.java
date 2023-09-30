@@ -1,4 +1,4 @@
-package searchengine.services.indexingImp;
+package searchengine.services.indexing.Impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,6 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final LemmaRepository lemmaRepository;
     private final SiteRepository siteRepository;
     private final SitesListProperties sites;
-    private static final String[] statuses = { "INDEXED", "FAILED", "INDEXING" };
     private static final String[] errors = {
             "Ошибка индексации: главная страница сайта не доступна",
             "Ошибка индексации: сайт не доступен",
@@ -59,12 +58,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     public void setDataForIndexedSites(SiteForIndexing siteFromRepository, TotalStatistics total, List<DetailedStatisticsItem> detailed, DetailedStatisticsItem item ) {
         String status = siteFromRepository.getSiteStatus().toString();
-        for (String statusSite : statuses) {
-            if (statusSite.equals(status)) {
-                status = statusSite;
-                break;
-            }
-        }
         item.setStatus(status);
         String lastError = siteFromRepository.getLastError();
         if(lastError == null){

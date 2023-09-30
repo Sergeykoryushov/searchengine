@@ -1,4 +1,4 @@
-package searchengine.services.indexingImp;
+package searchengine.services.indexing.Impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,9 +12,8 @@ import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
 import searchengine.services.indexing.IndexPageService;
 import searchengine.services.indexing.RecursiveLinkParser;
-import searchengine.services.searchImp.LemmaSearcherImp;
+import searchengine.services.search.Impl.LemmaSearcherImpl;
 
-import javax.transaction.Transactional;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -50,7 +49,7 @@ public class IndexPageServiceImpl implements IndexPageService {
             pageRepository.delete(page);
         }
         if (recursiveLinkParser.checkLink(url)) {
-            LemmaSearcherImp searchLemmas = new LemmaSearcherImp(pageRepository, lemmaRepository, searchIndexRepository);
+            LemmaSearcherImpl searchLemmas = new LemmaSearcherImpl(pageRepository, lemmaRepository, searchIndexRepository);
             try {
                 boolean updatePath = true;
                 recursiveLinkParser.connectingAndIndexingSite(siteForIndexing,searchLemmas, updatePath);

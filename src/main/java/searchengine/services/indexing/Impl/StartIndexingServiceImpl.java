@@ -1,4 +1,4 @@
-package searchengine.services.indexingImp;
+package searchengine.services.indexing.Impl;
 
 import lombok.Data;
 import lombok.Getter;

@@ -20,8 +20,8 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
-import searchengine.services.searchImp.LemmaSearcherImp;
-import searchengine.services.indexingImp.StartIndexingServiceImpl;
+import searchengine.services.search.Impl.LemmaSearcherImpl;
+import searchengine.services.indexing.Impl.StartIndexingServiceImpl;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -58,7 +58,7 @@ public class RecursiveLinkParser extends RecursiveAction {
         if (siteDepth > MAX_DEPTH) {
             return;
         }
-        LemmaSearcherImp searchLemmas = new LemmaSearcherImp(pageRepository, lemmaRepository, searchIndexRepository);
+        LemmaSearcherImpl searchLemmas = new LemmaSearcherImpl(pageRepository, lemmaRepository, searchIndexRepository);
         try {
             boolean updatePath = false;
             connectingAndIndexingSite(siteForIndexing, searchLemmas, updatePath);
@@ -143,7 +143,7 @@ public class RecursiveLinkParser extends RecursiveAction {
         }
     }
 
-    public void connectingAndIndexingSite(SiteForIndexing siteForIndexing, LemmaSearcherImp searchLemmas, boolean updatePath) throws IOException, InterruptedException {
+    public void connectingAndIndexingSite(SiteForIndexing siteForIndexing, LemmaSearcherImpl searchLemmas, boolean updatePath) throws IOException, InterruptedException {
         Thread.sleep(150);
         if (interrupted.get()) {
             return;

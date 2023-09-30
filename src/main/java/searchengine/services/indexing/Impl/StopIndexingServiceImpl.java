@@ -1,4 +1,4 @@
-package searchengine.services.indexingImp;
+package searchengine.services.indexing.Impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
-public class StopIndexingServiceImp implements StopIndexingService {
+public class StopIndexingServiceImpl implements StopIndexingService {
     private final StartIndexingServiceImpl startIndexingServiceImpl;
     private final SiteRepository siteRepository;
 

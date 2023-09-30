@@ -1,4 +1,4 @@
-package searchengine.services.searchImp;
+package searchengine.services.search.Impl;
 
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
@@ -15,7 +15,7 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SearchIndexRepository;
 import searchengine.repository.SiteRepository;
-import searchengine.services.indexingImp.StartIndexingServiceImpl;
+import searchengine.services.indexing.Impl.StartIndexingServiceImpl;
 import searchengine.services.search.SearchService;
 
 import javax.transaction.Transactional;
@@ -23,7 +23,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-public class SearchServiceImp implements SearchService {
+public class SearchServiceImpl implements SearchService {
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
     private final LemmaRepository lemmaRepository;
@@ -33,7 +33,7 @@ public class SearchServiceImp implements SearchService {
     @Override
     @Transactional
     public SearchResponse search(String query, int offset, int limit, String site) {
-        LemmaSearcherImp searchLemmas = new LemmaSearcherImp(pageRepository, lemmaRepository, searchIndexRepository);
+        LemmaSearcherImpl searchLemmas = new LemmaSearcherImpl(pageRepository, lemmaRepository, searchIndexRepository);
         SearchResponse response = new SearchResponse();
         HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasAndCountInText(query);
         Set<String> queryLemmaSet = lemmasCountMap.keySet();
@@ -96,42 +96,38 @@ public class SearchServiceImp implements SearchService {
     }
 
 
-
-    public HashMap<Page, Float> getSortedRelativeRelevanceMap(List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList){
-        HashMap<Page,Float> pagesRelativeRelevanceMap = new HashMap<>();
-        HashMap<Page,Float> pagesAbsolutRelevanceMap = getAbsolutRelevanceMap( resultQueryFromPagesIdList,lemmaList);
+    public HashMap<Page, Float> getSortedRelativeRelevanceMap(List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList) {
+        HashMap<Page, Float> pagesRelativeRelevanceMap = new HashMap<>();
+        HashMap<Page, Float> pagesAbsolutRelevanceMap = getAbsolutRelevanceMap(resultQueryFromPagesIdList, lemmaList);
         Float maxAbsolutRelevance = Collections.max(pagesAbsolutRelevanceMap.values());
         for (Map.Entry<Page, Float> entry : pagesAbsolutRelevanceMap.entrySet()) {
             Float absolutRelevance = entry.getValue();
             Page page = entry.getKey();
-            Float relativeRelevance = absolutRelevance/maxAbsolutRelevance;
-            pagesRelativeRelevanceMap.put(page,relativeRelevance);
+            Float relativeRelevance = absolutRelevance / maxAbsolutRelevance;
+            pagesRelativeRelevanceMap.put(page, relativeRelevance);
         }
-        HashMap<Page, Float> sortedRelativeRelevanceMap = new HashMap<>();
+        HashMap<Page, Float> sortedRelativeRelevanceMap = new LinkedHashMap<>();
         pagesRelativeRelevanceMap.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue())
+                .sorted(Map.Entry.comparingByValue(Collections.reverseOrder()))
                 .forEach(entry -> sortedRelativeRelevanceMap.put(entry.getKey(), entry.getValue()));
         return sortedRelativeRelevanceMap;
     }
 
 
-
-    public  HashMap<Page, Float> getAbsolutRelevanceMap(List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList){
-        HashMap<Page,Float> pagesAbsolutRelevanceMap = new HashMap<>();
-        for (Integer pageId: resultQueryFromPagesIdList){
+    public HashMap<Page, Float> getAbsolutRelevanceMap(List<Integer> resultQueryFromPagesIdList, List<Lemma> lemmaList) {
+        HashMap<Page, Float> pagesAbsolutRelevanceMap = new HashMap<>();
+        List<Integer> lemmaIdList = new ArrayList<>();
+        for (Lemma lemma : lemmaList) {
+            lemmaIdList.add(lemma.getId());
+        }
+        List<Page> pages = pageRepository.findByIdIn(resultQueryFromPagesIdList);
+        for (Page page : pages) {
             float absolutRelevance = 0;
-            Optional<Page> optionalPage = pageRepository.findById(pageId);
-            if (optionalPage.isPresent()) {
-                Page page = optionalPage.get();
-                for (Lemma lemma : lemmaList){
-                    SearchIndex searchIndex =  searchIndexRepository.findByLemmaIdAndPageId(lemma.getId(), pageId);
-                    if(searchIndex == null) {
-                        continue;
-                    }
-                    absolutRelevance += searchIndex.getRank();
-                }
-                pagesAbsolutRelevanceMap.put(page,absolutRelevance);
+            List<SearchIndex> searchIndexes = searchIndexRepository.findByLemmaIdInAndPageId(lemmaIdList, page.getId());
+            for (SearchIndex searchIndex : searchIndexes) {
+                absolutRelevance += searchIndex.getRank();
             }
+            pagesAbsolutRelevanceMap.put(page, absolutRelevance);
         }
         return pagesAbsolutRelevanceMap;
     }
@@ -175,9 +171,9 @@ public class SearchServiceImp implements SearchService {
     }
 
     public String getRussianText(String text){
-        LemmaSearcherImp search = new LemmaSearcherImp();
+        LemmaSearcherImpl search = new LemmaSearcherImpl();
         text = search.removeHtmlTags(text);
-        String[] russianWords = text.split(LemmaSearcherImp.regexForSplitText);
+        String[] russianWords = text.split(LemmaSearcherImpl.regexForSplitText);
         return String.join(" ", russianWords);
     }
     public List<Integer> getAllSitesIdFromConfig(String site){
