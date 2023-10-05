@@ -193,6 +193,8 @@ public class RecursiveLinkParser extends RecursiveAction {
                 siteForIndexing.setStatusTime(LocalDateTime.now());
             }
             siteRepository.save(siteForIndexing);
+        } else {
+            return;
         }
         if (interrupted.get()) {
             return;
