@@ -28,6 +28,8 @@ public class SearchServiceImpl implements SearchService {
     private final SiteRepository siteRepository;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
+    private List <Lemma> lemmaList = new ArrayList<>();
+    private List<Integer> resultQueryFromPagesIdList = new ArrayList<>();
 
 
     @Override
@@ -38,16 +40,13 @@ public class SearchServiceImpl implements SearchService {
         HashMap<String, Integer> lemmasCountMap = searchLemmas.gettingLemmasAndCountInText(query);
         Set<String> queryLemmaSet = lemmasCountMap.keySet();
         List<Integer> allSitesId = getAllSitesIdFromConfig(site);
-        List<Integer> resultQueryFromPagesIdList = new ArrayList<>();
-        List <Lemma> lemmaList = new ArrayList<>();
         for (Integer siteId: allSitesId ) {
             List<Lemma> lemmaListForOneSite = getLemmaListFromRepository(queryLemmaSet, siteId);
             lemmaList.addAll(lemmaListForOneSite);
-            List<Integer> resultPagesIdListForOneSite = getResultQueryFromPagesIdList(lemmaListForOneSite);
-            resultQueryFromPagesIdList.addAll(resultPagesIdListForOneSite);
         }
         if(!lemmaList.isEmpty()) {
             lemmaList.sort(Comparator.comparingInt(Lemma::getFrequency));
+            resultQueryFromPagesIdList = getResultQueryFromPagesIdList(lemmaList);
         }
         if(resultQueryFromPagesIdList.isEmpty()) {
             response.setResult(true);

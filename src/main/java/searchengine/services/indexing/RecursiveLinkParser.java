@@ -158,7 +158,7 @@ public class RecursiveLinkParser extends RecursiveAction {
                 return;
             }
             OnePathInfo info = new OnePathInfo(siteForIndexing, statusCode, searchLemmas, html);
-            indexingOnePath(element, info, updatePath, url);
+            indexingOnePath(element, info, updatePath);
         }
     }
 
@@ -174,13 +174,13 @@ public class RecursiveLinkParser extends RecursiveAction {
         if (e instanceof org.jsoup.HttpStatusException) {
             statusCode = ((org.jsoup.HttpStatusException) e).getStatusCode();
         }
-            String html = null;
+            String html = "";
             OnePathInfo info = new OnePathInfo(siteForIndexing, statusCode, html);
             savePageInRepository(url, info);
     }
 
 
-    public void indexingOnePath(Element element, OnePathInfo info, boolean updatePath, String url) {
+    public void indexingOnePath(Element element, OnePathInfo info, boolean updatePath) {
            String path = element.absUrl("href");
         if (!checkLink(path)) {
             return;
@@ -193,8 +193,6 @@ public class RecursiveLinkParser extends RecursiveAction {
                 siteForIndexing.setStatusTime(LocalDateTime.now());
             }
             siteRepository.save(siteForIndexing);
-        } else {
-            return;
         }
         if (interrupted.get()) {
             return;
