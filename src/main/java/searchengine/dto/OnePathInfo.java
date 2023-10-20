@@ -2,7 +2,7 @@ package searchengine.dto;
 
 import lombok.Data;
 import searchengine.model.SiteForIndexing;
-import searchengine.services.search.Impl.LemmaSearcherImpl;
+import searchengine.service.search.Impl.LemmaSearcherImpl;
 
 @Data
 public class OnePathInfo {

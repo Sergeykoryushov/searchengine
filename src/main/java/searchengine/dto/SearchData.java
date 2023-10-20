@@ -2,11 +2,12 @@ package searchengine.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"site", "siteName", "uri", "title", "snippet", "relevance"})
+@Builder
 public class SearchData {
     private String site;
     private String siteName;
