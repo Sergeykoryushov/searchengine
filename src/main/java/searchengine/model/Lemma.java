@@ -1,6 +1,7 @@
 package searchengine.model;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(indexes = {@Index(name = "idx_lemma_site_id", columnList = "lemma, site_id")})
+@Builder
 public class Lemma {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)

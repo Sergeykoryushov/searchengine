@@ -1,10 +1,12 @@
 package searchengine.dto;
 
+import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
+@Builder
 public class DetailedStatisticsItem {
     private String url;
     private String name;
